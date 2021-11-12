@@ -29,3 +29,10 @@ In the course we have seen only very basic garbling schemes. More advanced schem
 because they allow to garble gates using less computation, because they produce shorter garbled gates,
 or a combination of both. The project is about reading, understanding, implementing and benchmarking the first two garbling schemes. The third one (and potentially more) could be included depending
 on your ambition and/or the size of the group.
+
+- [ZRE15] Samee Zahur, Mike Rosulek, and David Evans. Two halves make a whole - reducing data transfer
+          in garbled circuits using half gates. pages 220–250, 2015. 2
+- [GLNP15] Shay Gueron, Yehuda Lindell, Ariel Nof, and Benny Pinkas. Fast garbling of circuits under
+           standard assumptions. pages 567–578, 2015. 2
+- [RR21] Mike Rosulek and Lawrence Roy. Three halves make a whole? Beating the half-gates lower
+         bound for garbled circuits. pages 94–124, 2021. 2
