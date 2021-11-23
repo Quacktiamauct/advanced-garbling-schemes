@@ -1,5 +1,12 @@
 # Advanced Garbling Schemes
 
+## Current goals
+- Use https://homes.esat.kuleuven.be/~nsmart/MPC/
+- Rewrite YAO to use the above.
+- Do the other two.
+- ???
+- Profit
+
 ## Project Description
 ### Group
 - Frederik Munk Madsen
@@ -20,6 +27,7 @@ Implementation of the two garbling schemes presented in ZRE15 and GLNP15 used fo
 ## Papers
 - [Fast Garbling of Circuits Under Standard Assumptions](https://eprint.iacr.org/2015/751.pdf)
 - [Two Halves Make a Whole](https://eprint.iacr.org/2014/756.pdf)
+- [Three Halves Make a Whole?](https://eprint.iacr.org/2021/749.pdf)
 
 
 
