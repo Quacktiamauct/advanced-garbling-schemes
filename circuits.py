@@ -16,6 +16,9 @@ class Gate:
 
 class Circuit:
         def __init__(self, *args):
+            """
+            Initialize a circuit.
+            """
             if len(args) == 1:
                 self.__parse(args[0])
             else:
@@ -36,17 +39,20 @@ class Circuit:
             """
             Evaluates the circuit with the given inputs
             """
+            # handle inputs
             if len(input) != self.num_inputs:
                 raise ValueError("Wrong number of inputs")
             for i,e in enumerate(input):
                 if len(e) != self.input_sizes[i]:
                     raise ValueError("Wrong input size")
-            wires = bitarray(self.num_wires, endian='little')
+            # setup registers/wires
             k = 0
+            wires = bitarray(self.num_wires, endian='little')
             for i in range(self.num_inputs):
                 for j in range(self.input_sizes[i]):
                     wires[k] = input[i][j]
                     k += 1
+            # evaluate gates
             for gate in self.gates:
                 if gate.operation == "AND":
                     wires[gate.output_wires[0]] = wires[gate.input_wires[0]] & wires[gate.input_wires[1]]
@@ -54,6 +60,7 @@ class Circuit:
                     wires[gate.output_wires[0]] = wires[gate.input_wires[0]] ^ wires[gate.input_wires[1]]
                 else:
                     raise ValueError("Unknown operation") # TODO: support more operation
+            # return output
             output = wires[-self.output_sizes[0]:] # handle multiple outputs
             return output
 
@@ -84,7 +91,6 @@ class Circuit:
                     Gate(num_inputs, num_output, input_wires, output_wires, operation)
                 )
             self.__new(num_inputs, input_sizes, num_outputs, output_sizes, num_wires, gates)
-
 
 
 
