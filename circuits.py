@@ -10,6 +10,14 @@ class Gate:
         self.output_wires = output_wires
         self.operation = operation
 
+    def op(self, *args):
+        if self.operation == 'AND':
+            return args[0] & args[1]
+        elif self.operation == 'XOR':
+            return args[0] ^ args[1]
+        else:
+            raise Exception('Invalid operation')
+
     def __str__(self):
         return f"{self.num_inputs} {self.num_outputs} {self.input_wires} {self.output_wires} {self.operation}"
 
@@ -54,12 +62,7 @@ class Circuit:
                     k += 1
             # evaluate gates
             for gate in self.gates:
-                if gate.operation == "AND":
-                    wires[gate.output_wires[0]] = wires[gate.input_wires[0]] & wires[gate.input_wires[1]]
-                elif gate.operation == "XOR":
-                    wires[gate.output_wires[0]] = wires[gate.input_wires[0]] ^ wires[gate.input_wires[1]]
-                else:
-                    raise ValueError("Unknown operation") # TODO: support more operation
+                wires[gate.output_wires[0]] = gate.op(*[wires[i] for i in gate.input_wires])
             # return output
             output = wires[-self.output_sizes[0]:] # handle multiple outputs
             return output
