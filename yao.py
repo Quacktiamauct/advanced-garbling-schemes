@@ -62,13 +62,16 @@ def garble(c : Circuit) -> GarbledCircuit:
     gc.d = gc.wires[-1]
     gc.e = gc.wires[:c.num_inputs]
     gc.table = [[0,0,0,0]] * (c.num_wires - c.num_inputs)
+    # TODO: seriosly, clean this up
     for i in range(c.num_inputs, c.num_wires):
+        # enumerate the different possible values for the wire
         for j, (a,b) in enumerate([[0,0], [0,1], [1,0], [1,1]]):
             wire = gc.wires[i]
-            print(c.gates[i]) # TODO: Find out what to actually use here
-            outwire = c.gates[i].op(a,b)
+            outwire = c.gates[i].op(a,b) # TODO: find the right gate, this doesn't work.
             g = G(wire[a], wire[b], i)
+            # make the garbled table
             gc.table[i][j] = g[:SIZE] ^ gc.wires[i][outwire], g[SIZE:]
+        # do the permutations
         permute = secrets.choice(list(itertools.permutations([0,1,2,3])))
         gc.table[i] = [gc.table[i][k] for k in permute]
     return gc
