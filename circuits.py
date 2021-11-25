@@ -96,16 +96,13 @@ class Circuit:
             self.__new(num_inputs, input_sizes, num_outputs, output_sizes, num_wires, gates)
 
 
-
-f = open("./adder64.txt")
-raw = f.read()
-c = Circuit(raw)
-
-a = int2ba(5, 64, endian='little')
-b = int2ba(5, 64, endian='little')
-
-ab = c.eval(a, b)
-
-print(ba2int(ab))
+if __name__ == '__main__':
+    f = open("./adder64.txt")
+    raw = f.read()
+    c = Circuit(raw)
+    a = int2ba(5, 64, endian='little')
+    b = int2ba(7, 64, endian='little')
+    ab = c.eval(a, b)
+    print(ba2int(ab))
 
 
