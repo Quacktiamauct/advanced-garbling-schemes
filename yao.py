@@ -21,12 +21,10 @@ class GarbledCircuit:
         pass
 
     def eval(self, *X) -> bitarray:
-        print(type(gc.table[0][0]))
         wires = self.wires[:] # copy wires
         wires[len(X):] = X
         for i in range(self.num_inputs, self.num_wires):
             for j in range(4):
-                print(gc.table[j][0])
                 res = G(wires[i][0], wires[i][1], i) ^ self.table[i][j]
                 out = res[:SIZE]
                 tau = res[SIZE:]
@@ -70,17 +68,15 @@ def garble(c : Circuit) -> GarbledCircuit:
     gc.d = gc.wires[-sum(gc.output_sizes)]
     sum_input_sizes = sum(gc.input_sizes)
     gc.e = gc.wires[:sum_input_sizes]
-    gc.table = [[0,0,0,0]] * (gc.num_wires - sum_input_sizes)
-    # TODO: seriosly, clean this up
-    for i in range(gc.num_wires - sum_input_sizes):
-        # enumerate the different possible values for the wire
+    gc.table = [[0,0,0,0]] * gc.num_wires
+    for gate in c.gates:
         for j, (a,b) in enumerate([[0,0], [0,1], [1,0], [1,1]]):
-            wire = gc.wires[i]
-            # outwire = c.gates[i].op(a,b) # TODO: find the right gate, this doesn't work.
-            not_ab = 1 - (a & b)
-            g = G(wire[a], wire[b], i)
-            # make the garbled table
-            gc.table[i][j] = (g[:SIZE] ^ gc.wires[i][not_ab]) + g[SIZE:]
+            left = gate.input_wires[0] # assume two inputs for now
+            right = gate.input_wires[1]
+            i = gate.output_wires[0] # assume one output for now
+            tmp1 = G(gc.wires[left][a], gc.wires[right][b], i)
+            tmp2 = gc.wires[i][gate.op(a,b)]
+            gc.table[i][j] = (tmp1[:SIZE] ^ tmp2) + tmp1[SIZE:]
         # do the permutations
         permute = secrets.choice(list(itertools.permutations([0,1,2,3])))
         gc.table[i] = [gc.table[i][k] for k in permute]
