@@ -2,6 +2,7 @@ import itertools
 import secrets
 import hashlib
 
+from typing import Tuple, List
 from enum import Enum
 from bitarray import bitarray
 from bitarray.util import int2ba, ba2int
@@ -36,7 +37,7 @@ def pick_random_pair():
     return arr[:SIZE], arr[SIZE:]
 
 
-def G(left: bitarray, right: bitarray, i: int) -> (bitarray, bitarray):
+def G(left: bitarray, right: bitarray, i: int) -> Tuple[bitarray, bitarray]:
     """
         input: A and B are bitarrays of size SIZE
         returns a 2*SIZE bitarray
@@ -60,6 +61,11 @@ class CircuitGate:
 
 
 class GarbledGate(CircuitGate):
+    Op: GateType
+    Left: CircuitGate
+    Right: CircuitGate
+    C: List[Tuple[bitarray, bitarray]]
+
     def __init__(self, index: int, op: GateType, left: CircuitGate, right: CircuitGate):
         super().__init__(index)
         self.Op = op
@@ -136,7 +142,8 @@ class OutputGate:
 
 
 class YaoCircuit:
-    def __init__(self, gates: [CircuitGate], inputs: [InputGate], outputs: [OutputGate], intermediates: [GarbledGate]):
+    def __init__(self, gates: List[CircuitGate], inputs: List[InputGate],
+                outputs: List[OutputGate], intermediates: List[GarbledGate]):
         self.Inputs = inputs
         self.Outputs = outputs
         self.Gates = gates
