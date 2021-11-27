@@ -8,9 +8,10 @@ from bitarray.util import int2ba, ba2int
 
 
 class GateType(Enum):
+    NOT = 0,
     AND = 1,
     XOR = 2,
-    NOT = 3,
+    OR = 3,
     NAND = 4
 
 
@@ -67,12 +68,14 @@ class GarbledGate(CircuitGate):
         self.C = [(make_bitarray(MAGIC), make_bitarray(MAGIC))] * 4
 
     def Compute(self, left, right):
+        if self.Op == GateType.NOT:
+            return left ^ 1
         if self.Op == GateType.AND:
             return left & right
         if self.Op == GateType.XOR:
             return left ^ right
-        if self.Op == GateType.NOT:
-            return left ^ 1
+        if self.Op == GateType.OR:
+            return left | right
         if self.Op == GateType.NAND:
             return (left & right) ^ 1
 
@@ -159,20 +162,26 @@ class YaoCircuit:
 
 
 # Simple circuit with one AND gate
-leftInput = InputGate(0)
-rightInput = InputGate(1)
-andGate = GarbledGate(2, GateType.XOR, leftInput, rightInput)
-outputGate = OutputGate(andGate)
+input1 = InputGate(0)
+input2 = InputGate(1)
+input3 = InputGate(2)
+input4 = InputGate(3)
+ins = [input1, input2, input3, input4]
 
-ins = [leftInput, rightInput]
+andGate = GarbledGate(4, GateType.AND, input1, input2)
+xorGate = GarbledGate(5, GateType.XOR, input3, input4)
+orGate = GarbledGate(6, GateType.OR, andGate, xorGate)
+steps = [andGate, xorGate, orGate]
+
+outputGate = OutputGate(orGate)
 outs = [outputGate]
-steps = [andGate]
-all = [leftInput, rightInput, andGate]
+
+all = [input1, input2, input3, input4, andGate, xorGate, orGate]
 circuit = YaoCircuit(all, ins, outs, steps)
 
 # Garble
 circuit.Garble()
-circuit.Encode([0, 0])
+circuit.Encode([1, 0, 1, 1])
 circuit.Evaluate()
 result = circuit.Decode()
 
