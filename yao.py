@@ -5,7 +5,8 @@ from circuits import Circuit
 import secrets
 import hashlib
 
-SIZE = 8*16 # underlying primitive size k
+SIZE = 8 * 16  # underlying primitive size k
+
 
 class GarbledCircuit:
     num_inputs: int
@@ -21,7 +22,7 @@ class GarbledCircuit:
         pass
 
     def eval(self, *X) -> bitarray:
-        wires = self.wires[:] # copy wires
+        wires = self.wires[:]  # copy wires
         wires[len(X):] = X
         for i in range(self.num_inputs, self.num_wires):
             for j in range(4):
@@ -31,12 +32,12 @@ class GarbledCircuit:
                 if not tau.any():
                     wires[i] = out
                     break
-                elif j == 3: # we shouldn't get here if everything works
+                elif j == 3:  # we shouldn't get here if everything works
                     raise Exception("No valid wire found")
         return wires[-sum(self.output_sizes)]
 
 
-def G(A : bitarray, B : bitarray, i : int) -> bitarray:
+def G(A: bitarray, B: bitarray, i: int) -> bitarray:
     """
         input: A and B are bitarrays of size SIZE
         returns a 2*SIZE bitarray
@@ -48,6 +49,7 @@ def G(A : bitarray, B : bitarray, i : int) -> bitarray:
     arr.frombytes(hash)
     return arr
 
+
 def pick_random_pair():
     rnd = secrets.token_bytes(32)
     arr = bitarray()
@@ -55,36 +57,44 @@ def pick_random_pair():
     return arr[:SIZE], arr[SIZE:]
 
 
-def garble(c : Circuit) -> GarbledCircuit:
+def garble(c: Circuit) -> GarbledCircuit:
     gc = GarbledCircuit()
     gc.num_inputs = c.num_inputs
     gc.input_sizes = c.input_sizes
     gc.output_sizes = c.output_sizes
     gc.num_wires = c.num_wires
     gc.wires = []
+
     for i in range(c.num_wires):
         garbled_wire = pick_random_pair()
         gc.wires.append(garbled_wire)
+
     gc.d = gc.wires[-sum(gc.output_sizes)]
     sum_input_sizes = sum(gc.input_sizes)
     gc.e = gc.wires[:sum_input_sizes]
-    gc.table = [[0,0,0,0]] * gc.num_wires
+    gc.table = [[0, 0, 0, 0]] * gc.num_wires
+
+    # Iterate over all gates
     for gate in c.gates:
-        for j, (a,b) in enumerate([[0,0], [0,1], [1,0], [1,1]]):
-            left = gate.input_wires[0] # assume two inputs for now
+        for j, (leftValue, rightValue) in enumerate([[0, 0], [0, 1], [1, 0], [1, 1]]):
+            gateValue = gate.op(leftValue, rightValue)
+
+            left = gate.input_wires[0]  # assume two inputs for now
             right = gate.input_wires[1]
-            i = gate.output_wires[0] # assume one output for now
-            tmp1 = G(gc.wires[left][a], gc.wires[right][b], i)
-            tmp2 = gc.wires[i][gate.op(a,b)]
+            i = gate.output_wires[0]  # assume one output for now
+            tmp1 = G(gc.wires[left][leftValue], gc.wires[right][rightValue], i)
+            tmp2 = gc.wires[i][gate.op(leftValue, rightValue)]
             gc.table[i][j] = (tmp1[:SIZE] ^ tmp2) + tmp1[SIZE:]
         # do the permutations
-        permute = secrets.choice(list(itertools.permutations([0,1,2,3])))
+        permute = secrets.choice(list(itertools.permutations([0, 1, 2, 3])))
         gc.table[i] = [gc.table[i][k] for k in permute]
     return gc
+
 
 def encode(e, x):
     X = [e[i][x[i]] for i, _ in enumerate(x)]
     return X
+
 
 def decode(d, Z):
     X = [d[i][Z[i]] for i, _ in enumerate(Z)]
@@ -103,4 +113,3 @@ if __name__ == "__main__":
     enc_b = encode(e, b)
     ab = gc.eval(enc_a, enc_b)
     print(ba2int(ab))
-
