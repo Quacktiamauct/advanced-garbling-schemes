@@ -129,7 +129,6 @@ class GarbledGate(CircuitGate):
             return -1
 
 
-
 class InputGate(CircuitGate):
     def __init__(self, index: int):
         super().__init__(index)
@@ -256,7 +255,12 @@ if __name__ == '__main__':
     b_num = 7
     a = int2ba(a_num, 64, endian='little')
     b = int2ba(b_num, 64, endian='little')
-    c.Encode(a+b)
+    bits = []
+    for aBit in a:
+        bits.append(aBit)
+    for bBit in b:
+        bits.append(bBit)
+    c.Encode(bits)
     c.Evaluate()
     res = c.Decode()
     print(f"{a_num} + {b_num} = {res}")
