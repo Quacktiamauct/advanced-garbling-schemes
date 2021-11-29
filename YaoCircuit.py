@@ -119,16 +119,6 @@ class GarbledGate(CircuitGate):
         else:
             self.Output = evaluation
 
-
-    def Decode(self):
-        if self.K[0] == self.Output:
-            return 0
-        elif self.K[1] == self.Output:
-            return 1
-        else:
-            return -1
-
-
 class InputGate(CircuitGate):
     def __init__(self, index: int):
         super().__init__(index)
@@ -189,7 +179,8 @@ def parse(raw : str):
     input_sizes = [int(i) for i in rows[1].strip().split(' ')[1:]]
     # num_outputs = int(rows[2].strip().split(' ')[0]) # assume 1
     output_sizes = [int(i) for i in rows[2].strip().split(' ')[1:]]
-    gate_dict: Dict[int, CircuitGate] = {i: InputGate(i) for i in range(sum(input_sizes))}
+    inputs = [InputGate(i) for i in range(sum(input_sizes))]
+    gate_dict: Dict[int, CircuitGate] = {i: gate for i, gate in enumerate(inputs)}
     for r in rows[4:]:
         if r == '':
             continue
@@ -214,9 +205,15 @@ def parse(raw : str):
     gates = list(gate_dict.values())
     input_size = sum(input_sizes)
     output_size = sum(output_sizes)
+    outputs = []
+    for i in range(output_size):
+        outputs.append(OutputGate(gate_dict[num_wires-i-1]))
+    gates.extend(outputs)
     # HACK: stupid type hints don't work with this
-    return YaoCircuit(gates, gates[:input_size],
-        gates[len(gates)-output_size:], gates[input_size:output_size])
+    return YaoCircuit(gates,
+        inputs,
+        outputs,
+        gates[input_size:len(gate_dict)])
 
 
 # Simple circuit with one AND gate
