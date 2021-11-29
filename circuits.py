@@ -15,6 +15,7 @@ op_dict = {
     'AND': Operation.AND,
     'XOR': Operation.XOR,
     'INV': Operation.INV,
+    'OR': Operation.OR
     }
 
 class Gate:
@@ -65,7 +66,15 @@ class Circuit:
             self.gates = gates
 
         def __str__(self):
-            return f"{self.num_inputs} {self.input_sizes} {self.num_outputs} {self.output_sizes} " + "\n".join(map(str, self.gates))
+            """
+            Return a string representation of the circuit.
+            """
+            s = f"{len(self.gates)} {self.num_wires}\n"
+            s += f"{self.num_inputs} {' '.join([str(i) for i in self.input_sizes])}\n"
+            s += f"{self.num_outputs} {' '.join([str(i) for i in self.output_sizes])}\n"
+            for gate in self.gates:
+                s += f"{gate.left} {gate.right} {gate.output} {gate.operation}\n"
+            return s
 
         def eval(self, *input):
             """
@@ -73,10 +82,12 @@ class Circuit:
             """
             # handle inputs
             if len(input) != self.num_inputs:
-                raise ValueError("Wrong number of inputs")
+                raise ValueError("Wrong number of inputs."
+                    + f" Provided {len(input)}, but needed {self.num_inputs}")
             for i,e in enumerate(input):
                 if len(e) != self.input_sizes[i]:
-                    raise ValueError("Wrong input size")
+                    raise ValueError("Wrong input size. "
+                        + f"Provided {len(e)}, but needed {self.input_sizes[i]}")
             # setup registers/wires
             k = 0
             wires = bitarray(self.num_wires, endian='little')
@@ -98,11 +109,11 @@ class Circuit:
             rows = raw.split('\n')
             num_gates, num_wires = rows[0].strip().split(' ')
             num_gates = int(num_gates)
-            num_wires = int(num_wires)
-            num_inputs = int(rows[1].strip().split(' ')[0])
-            input_sizes = [int(i) for i in rows[1].strip().split(' ')[1:]]
-            num_outputs = int(rows[2].strip().split(' ')[0])
-            output_sizes = [int(i) for i in rows[2].strip().split(' ')[1:]]
+            c_num_wires = int(num_wires)
+            c_num_inputs = int(rows[1].strip().split(' ')[0])
+            c_input_sizes = [int(i) for i in rows[1].strip().split(' ')[1:]]
+            c_num_outputs = int(rows[2].strip().split(' ')[0])
+            c_output_sizes = [int(i) for i in rows[2].strip().split(' ')[1:]]
             gates = []
             for r in rows[4:]:
                 if r == '':
@@ -121,7 +132,7 @@ class Circuit:
                 gates.append(
                     Gate(op_dict[operation], left, right, output_wires[0])
                 )
-            self.__new(num_inputs, input_sizes, num_outputs, output_sizes, num_wires, gates)
+            self.__new(c_num_inputs, c_input_sizes, c_num_outputs, c_output_sizes, c_num_wires, gates)
 
 
 if __name__ == '__main__':
