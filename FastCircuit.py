@@ -15,9 +15,13 @@ class GateType(Enum):
     NAND = 4
 
 
-SIZE = 128
+#SIZE = 128
+#MAGIC = 2863311530 # 101010101010101010... in binary
+
+SIZE = 4
+MAGIC = 5
 EXTENDED_SIZE = SIZE + 1
-MAGIC = 2863311530 # 101010101010101010... in binary
+
 
 def make_bitarray(i: int):
     return int2ba(i, SIZE, endian='little')
@@ -38,50 +42,26 @@ def pick_random_pair():
     rnd = secrets.token_bytes(32)
     arr = bitarray()
     arr.frombytes(rnd)
-    return arr[:SIZE], arr[SIZE:]
-
-
-
-def G(left: bitarray, right: bitarray, i: int) -> Tuple[bitarray, bitarray]:
-    """
-        input: A and B are bitarrays of size SIZE
-        returns a 2*SIZE bitarray
-    """
-    ia = int2ba(i, SIZE, endian='little')
-    food = left + right + ia
-    arr = bitarray()
-    arr.frombytes(hashlib.sha256(food.tobytes()).digest())
-    return arr[SIZE:], arr[:SIZE]
+    return arr[:SIZE], arr[SIZE:(SIZE + SIZE)]
 
 
 def F(left: bitarray, right: bitarray) -> bitarray:
     food = left + right
     arr = bitarray()
     arr.frombytes(hashlib.sha256(food.tobytes()).digest())
-    return arr[EXTENDED_SIZE:]
+    return arr[:EXTENDED_SIZE]
 
 
 class CircuitGate:
     def __init__(self, index: int):
         self.Index = index
         self.K = [make_bitarray(MAGIC), make_bitarray(MAGIC)]
-        self.E = [make_bitarray(MAGIC), make_bitarray(MAGIC)]
         self.Permutation = -1
         self.Signal = -1
         self.Output = make_bitarray(MAGIC)
 
     def Garble(self):
-        kL, kR = pick_random_pair()
-        self.K = [kL, kR]
-        self.Permutation = secrets.randbits(1) & 1
-
-        # TODO: This should be an append, we would like new bitarrays!
-        #       (Do we actually directly need this)
-        eL = kL.copy()
-        eL.append(self.Permutation)
-        eR = kR.copy()
-        eR.append(1 ^ self.Permutation)
-        self.E = [eL, eR]
+        return
 
 
 class GarbledGate(CircuitGate):
@@ -148,11 +128,15 @@ class GarbledGate(CircuitGate):
         else:
             print("Cannot garble a " + str(self.Op) + " gate!")
 
+
     def Evaluate(self):
         if self.Op == GateType.XOR:
-            vLeft = F(self.Left.Output, make_bitarray_with(self.Index, self.Left.Signal)[:SIZE])
-            vRight = F(self.Right.Output, make_bitarray_with(self.Index, self.Right.Signal)[:SIZE])
-            k = vLeft ^ vRight ^ (self.Right.Signal * self.TXor)
+            vLeft = F(self.Left.Output, make_bitarray_with(self.Index, self.Left.Signal))[:SIZE]
+            vRight = F(self.Right.Output, make_bitarray_with(self.Index, self.Right.Signal))[:SIZE]
+            if self.Right.Signal:
+                k = vLeft ^ vRight ^ self.TXor
+            else:
+                k = vLeft ^ vRight
 
             self.Output = k
             self.Signal = self.Left.Signal ^ self.Right.Signal
@@ -160,26 +144,30 @@ class GarbledGate(CircuitGate):
             print("Cannot evaluate a " + str(self.Op) + " gate!")
 
 
-    def Decode(self):
-        if self.K[0] == self.Output:
-            return 0
-        elif self.K[1] == self.Output:
-            return 1
-        else:
-            return -1
-
-
 class InputGate(CircuitGate):
     def __init__(self, index: int):
         super().__init__(index)
+
+    def Garble(self):
+        super(InputGate, self).Garble()
+
+        k0, k1 = pick_random_pair()
+        self.K = [k0, k1]
+
+        self.Permutation = secrets.randbits(1)
+
+        e0 = k0.copy()
+        e0.append(self.Permutation)
+        e1 = k1.copy()
+        e1.append(1 ^ self.Permutation)
+        self.E = [e0, e1]
+
 
     def Encode(self, value):
         self.Output = self.E[value]
 
 
     def Evaluate(self):
-        # TODO: We might have some endianness issues here!
-        #       (Ensure this is consistent with concat, sub-arrays when garbling/evaluating)
         self.Signal = self.Output[SIZE]
         self.Output = self.Output[:SIZE]
         return
@@ -188,11 +176,25 @@ class InputGate(CircuitGate):
 class OutputGate:
     def __init__(self, value: CircuitGate):
         self.Value = value
+        self.D = [make_bitarray(MAGIC), make_bitarray(MAGIC)]
+
+    def Garble(self):
+        g = self.Value
+        self.D[0] = F(g.K[g.Permutation], make_bitarray_with(g.Index, g.Permutation))
+        self.D[1] = F(g.K[1 ^ g.Permutation], make_bitarray_with(g.Index, 1 ^ g.Permutation))
+        return
+
+
+    def Evaluate(self):
+        output = F(self.Value.Output, make_bitarray_with(self.Value.Index, self.Value.Signal))
+        self.Value.Output = output
+        return
 
     def Decode(self):
-        if self.Value.K[0] == self.Value.Output:
+        g = self.Value
+        if g.Output == self.D[0]:
             return 0
-        elif self.Value.K[1] == self.Value.Output:
+        elif g.Output == self.D[1]:
             return 1
         else:
             return -1
@@ -207,19 +209,27 @@ class FastCircuit:
         self.Intermediates = intermediates
 
     def Garble(self):
+        for gate in self.Inputs:
+            gate.Garble()
         for gate in self.Gates:
             gate.Garble()
+        for gate in self.Outputs:
+            gate.Garble()
+
 
     def Encode(self, values):
         for i, gate in enumerate(self.Inputs):
             gate.Encode(values[i])
 
+
     def Evaluate(self):
         for gate in self.Inputs:
             gate.Evaluate()
-        
         for gate in self.Intermediates:
             gate.Evaluate()
+        for gate in self.Outputs:
+            gate.Evaluate()
+
 
     def Decode(self):
         result = []
@@ -244,7 +254,7 @@ circuit = FastCircuit(all, ins, outs, steps)
 
 # Garble
 circuit.Garble()
-circuit.Encode([1, 1])
+circuit.Encode([0, 0])
 circuit.Evaluate()
 result = circuit.Decode()
 
