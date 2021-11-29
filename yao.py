@@ -34,7 +34,6 @@ def pick_random_pair():
 
 class GarbledGate:
     C: List[Tuple[bitarray, bitarray]]
-    # K: Tuple[bitarray, bitarray]
     left: int
     right: int
     output: int
@@ -44,7 +43,6 @@ class GarbledGate:
         self.right = gate.right
         self.output = gate.output
         self.C = [(make_bitarray(MAGIC), make_bitarray(MAGIC))] * 4
-        # self.K = make_bitarray(MAGIC), make_bitarray(MAGIC)
 
     def permute(self):
         permute = secrets.choice(list(itertools.permutations([0, 1, 2, 3])))
@@ -60,7 +58,6 @@ class GarbledCircuit:
     input_sizes: list
     output_sizes: list
     gates: List[GarbledGate]
-    K: List[Tuple[bitarray, bitarray]]
     e: List[Tuple[bitarray, bitarray]]
     d: List[Tuple[bitarray, bitarray]]
 
@@ -69,15 +66,8 @@ class GarbledCircuit:
         self.input_sizes = circuit.input_sizes
         self.output_sizes = circuit.output_sizes
         self.num_wires = circuit.num_wires
-        self.K = []
-        for _ in range(c.num_wires):
-            garbled_wire = pick_random_pair()
-            self.K.append(garbled_wire)
-        self.e = self.K[:sum(self.input_sizes)]
-        self.d = self.K[-sum(self.output_sizes):]
-        self.gates = []
 
-    def eval(self, *X) -> bitarray:
+    def eval(self, *X) -> List[bitarray]:
         args = []
         for x in X:
             args.extend(x)
@@ -92,25 +82,31 @@ class GarbledCircuit:
                 k = gL ^ cL
                 t = gR ^ cR
                 if not t.any(): # check if all zero
-                    print(f"gate {gg} works")
                     wires[gg.output] = k
                     found = True
                     break
             if not found:
                 raise Exception("Error at gate: " + str(gg))
-        return wires[-sum(self.output_sizes)]
+        return wires[-sum(self.output_sizes):]
 
 
 
 def garble(c: Circuit) -> GarbledCircuit:
     gc = GarbledCircuit(c)
+    K = []
+    for _ in range(c.num_wires):
+        garbled_wire = pick_random_pair()
+        K.append(garbled_wire)
+    gc.e = K[:sum(gc.input_sizes)]
+    gc.d = K[-sum(gc.output_sizes):]
+    gc.gates = []
     # Iterate over all gates
     for gate in c.gates:
         gg = GarbledGate(gate)
         for j, (leftValue, rightValue) in enumerate([[0, 0], [0, 1], [1, 0], [1, 1]]):
             gateValue = gate.op(leftValue, rightValue)
-            gL, gR = G(gc.K[gg.left][leftValue], gc.K[gg.right][rightValue], gg.output)
-            garbledValue = gc.K[gg.output][gateValue]
+            gL, gR = G(K[gg.left][leftValue], K[gg.right][rightValue], gg.output)
+            garbledValue = K[gg.output][gateValue]
             gg.C[j] = gL ^ garbledValue, gR
         # do the permutations
         gg.permute()
@@ -119,13 +115,13 @@ def garble(c: Circuit) -> GarbledCircuit:
 
 
 def encode(e, xs):
-    X = [ e[i][x] for i, x in enumerate(xs) ]
-    return X
+    z = [ e[i][x] for i, x in enumerate(xs) ]
+    return z
 
 
-def decode(d, Z : List[bitarray]):
-    x = [-1] * len(Z)
-    for i, z in enumerate(Z):
+def decode(d, zs : List[bitarray]):
+    x = [-1] * len(zs)
+    for i, z in enumerate(zs):
         Z0, Z1 = d[i]
         if z == Z0:
             x[i] = 0
@@ -159,5 +155,5 @@ if __name__ == "__main__":
     gc = garble(c)
     e = gc.e
     res = gc.eval(encode(e, bitarray([1,0,1,1])))
-    res_dec = decode(gc.d, [res])
+    res_dec = decode(gc.d, res)
     print(res_dec)
