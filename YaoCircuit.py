@@ -125,6 +125,7 @@ class InputGate(CircuitGate):
 
     def Encode(self, value):
         self.Output = self.K[value]
+        print(self.Output)
 
 
 class OutputGate:
@@ -217,50 +218,50 @@ def parse(raw : str):
 
 
 # Simple circuit with one AND gate
-# input1 = InputGate(0)
-# input2 = InputGate(1)
-# input3 = InputGate(2)
-# input4 = InputGate(3)
-# ins = [input1, input2, input3, input4]
-#
-# andGate = GarbledGate(4, GateType.AND, input1, input2)
-# xorGate = GarbledGate(5, GateType.XOR, input3, input4)
-# orGate = GarbledGate(6, GateType.OR, andGate, xorGate)
-# steps = [andGate, xorGate, orGate]
-#
-# outputGate = OutputGate(orGate)
-# outs = [outputGate]
-#
-# all = [input1, input2, input3, input4, andGate, xorGate, orGate]
-# circuit = YaoCircuit(all, ins, outs, steps)
-#
-# # Garble
-# circuit.Garble()
-# circuit.Encode([1, 0, 1, 1])
-# circuit.Evaluate()
-# result = circuit.Decode()
-#
-# print(result)
-# print("YaoCircuit done!")
+input1 = InputGate(0)
+input2 = InputGate(1)
+input3 = InputGate(2)
+input4 = InputGate(3)
+ins = [input1, input2, input3, input4]
 
-if __name__ == '__main__':
-    f = open("./adder64.txt")
-    raw = f.read()
-    c = parse(raw)
-    c.Garble()
-    a_num = 5
-    b_num = 7
-    a = int2ba(a_num, 64, endian='little')
-    b = int2ba(b_num, 64, endian='little')
-    bits = []
-    for aBit in a:
-        bits.append(aBit)
-    for bBit in b:
-        bits.append(bBit)
-    c.Encode(bits)
-    c.Evaluate()
-    res = c.Decode()
-    print(f"{a_num} + {b_num} = {res}")
+andGate = GarbledGate(4, GateType.AND, input1, input2)
+xorGate = GarbledGate(5, GateType.XOR, input3, input4)
+orGate = GarbledGate(6, GateType.OR, andGate, xorGate)
+steps = [andGate, xorGate, orGate]
+
+outputGate = OutputGate(orGate)
+outs = [outputGate]
+
+all = [input1, input2, input3, input4, andGate, xorGate, orGate]
+circuit = YaoCircuit(all, ins, outs, steps)
+
+# Garble
+circuit.Garble()
+circuit.Encode([1, 0, 1, 1])
+circuit.Evaluate()
+result = circuit.Decode()
+
+print(result)
+print("YaoCircuit done!")
+
+# if __name__ == '__main__':
+#     f = open("./adder64.txt")
+#     raw = f.read()
+#     c = parse(raw)
+#     c.Garble()
+#     a_num = 5
+#     b_num = 7
+#     a = int2ba(a_num, 64, endian='little')
+#     b = int2ba(b_num, 64, endian='little')
+#     bits = []
+#     for aBit in a:
+#         bits.append(aBit)
+#     for bBit in b:
+#         bits.append(bBit)
+#     c.Encode(bits)
+#     c.Evaluate()
+#     res = c.Decode()
+#     print(f"{a_num} + {b_num} = {res}")
 
 
 

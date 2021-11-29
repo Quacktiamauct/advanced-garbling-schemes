@@ -1,25 +1,49 @@
 # For working with bristol circuits
 from bitarray import bitarray
 from bitarray.util import int2ba, ba2int
+from enum import Enum
+from typing import List
+
+class Operation(Enum):
+    INV = 0,
+    AND = 1,
+    XOR = 2,
+    OR = 3,
+
+
+op_dict = {
+    'AND': Operation.AND,
+    'XOR': Operation.XOR,
+    'INV': Operation.INV,
+    }
 
 class Gate:
-    def __init__(self, num_inputs, num_outputs, input_wires, output_wires, operation):
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
-        self.input_wires = input_wires
-        self.output_wires = output_wires
+    operation: Operation
+    left: int
+    right: int
+    output: int
+
+    def __init__(self, operation, left, right, output):
         self.operation = operation
+        self.left = left
+        self.right = right
+        self.output = output
+
 
     def op(self, *args):
-        if self.operation == 'AND':
+        if self.operation == Operation.INV:
+            return 1 ^ args[0]
+        elif self.operation == Operation.AND:
             return args[0] & args[1]
-        elif self.operation == 'XOR':
+        elif self.operation == Operation.XOR:
             return args[0] ^ args[1]
+        elif self.operation == Operation.OR:
+            return args[0] | args[1]
         else:
-            raise Exception('Invalid operation')
+            raise Exception("Invalid operation")
 
     def __str__(self):
-        return f"{self.num_inputs} {self.num_outputs} {self.input_wires} {self.output_wires} {self.operation}"
+        return f"{self.operation} {self.left} {self.right} {self.output}"
 
 
 class Circuit:
@@ -62,7 +86,7 @@ class Circuit:
                     k += 1
             # evaluate gates
             for gate in self.gates:
-                wires[gate.output_wires[0]] = gate.op(*[wires[i] for i in gate.input_wires])
+                wires[gate.output] = gate.op(wires[gate.left], wires[gate.right])
             # return output
             output = wires[-self.output_sizes[0]:] # handle multiple outputs
             return output
@@ -86,22 +110,26 @@ class Circuit:
                 tmp = r.strip().split(' ')
                 num_inputs, num_outputs = tmp[0:2]
                 num_inputs = int(num_inputs)
-                num_output = int(num_outputs)
                 input_wires = [int(a) for a in tmp[2:2+num_inputs]]
                 output_wires = [int(a) for a in tmp[2+num_inputs:-1]]
                 operation = tmp[-1]
+                left = input_wires[0]
+                if len(input_wires) == 1:
+                    right = -1
+                else:
+                    right = input_wires[1]
                 gates.append(
-                    Gate(num_inputs, num_output, input_wires, output_wires, operation)
+                    Gate(op_dict[operation], left, right, output_wires[0])
                 )
             self.__new(num_inputs, input_sizes, num_outputs, output_sizes, num_wires, gates)
 
 
 if __name__ == '__main__':
-    f = open("./adder64.txt")
+    f = open("./sub64.txt")
     raw = f.read()
     c = Circuit(raw)
-    a = int2ba(5, 64, endian='little')
-    b = int2ba(7, 64, endian='little')
+    a = int2ba(7, 64, endian='little')
+    b = int2ba(5, 64, endian='little')
     ab = c.eval(a, b)
     print(ba2int(ab))
 
