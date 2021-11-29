@@ -10,6 +10,9 @@ class Operation(Enum):
     XOR = 2,
     OR = 3,
 
+    def __str__(self):
+        return self.name
+
 
 op_dict = {
     'AND': Operation.AND,
@@ -119,7 +122,7 @@ class Circuit:
                 if r == '':
                     continue
                 tmp = r.strip().split(' ')
-                num_inputs, num_outputs = tmp[0:2]
+                num_inputs = tmp[0]
                 num_inputs = int(num_inputs)
                 input_wires = [int(a) for a in tmp[2:2+num_inputs]]
                 output_wires = [int(a) for a in tmp[2+num_inputs:-1]]
