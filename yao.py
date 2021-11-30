@@ -143,7 +143,7 @@ def decode(d, zs: List[bitarray]):
 
 
 if __name__ == "__main__":
-    # f = open("./adder64.txt")
+    # f = open("./bristol/adder64.txt")
     # raw = f.read()
     # c = Circuit(raw)
     # gc = garble(c)
@@ -160,7 +160,7 @@ if __name__ == "__main__":
     # orGate = Gate(Operation.OR, 4, 5, 6)
     # steps = [andGate, xorGate, orGate]
     # c = Circuit(1, [4], 1, [1], 7, steps)
-    f = open("./test.txt")
+    f = open("./bristol/test.txt")
     raw = f.read()
     c = Circuit(raw)
     print(c)

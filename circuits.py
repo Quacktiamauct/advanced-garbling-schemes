@@ -151,7 +151,7 @@ class Circuit:
 
 
 if __name__ == "__main__":
-    f = open("./sub64.txt")
+    f = open("./bristol/sub64.txt")
     raw = f.read()
     c = Circuit(raw)
     a = int2ba(7, 64, endian="little")
