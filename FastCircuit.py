@@ -13,7 +13,8 @@ class GateType(Enum):
     AND = 1,
     XOR = 2,
     OR = 3,
-    NAND = 4
+    NAND = 4,
+    XORImproved = 5
 
 
 #SIZE = 128
@@ -105,14 +106,12 @@ class GarbledGate(CircuitGate):
 
     def Garble(self):
         super(GarbledGate, self).Garble()
+        # i = left, j = right, l = this gate
 
+        # XOR Gates
         if self.Op == GateType.XOR:
-            # i = left, j = right, l = this gate
             # 1. Output permutation bit
             permutation = self.Left.Permutation ^ self.Right.Permutation
-
-            if(permutation == 1):
-                print("\n\nBAD???????\n\n")
 
             # 2. Translated keys
             ki0 = F(self.Left.K[0], make_bitarray_with(self.Index, self.Left.Permutation))[:SIZE]
@@ -153,6 +152,7 @@ class GarbledGate(CircuitGate):
             print(str(self.Index) + "] k1  -- " + str(self.K[1]))
             print(str(self.Index) + "] T   -- " + str(self.TXor))
 
+        # AND Gates
         elif self.Op == GateType.AND:
             # 1. Compute K0
             K0 = F(self.Left.K[self.Left.Permutation], make_bitarray_with_2(self.Index, 0, 0))
@@ -182,10 +182,42 @@ class GarbledGate(CircuitGate):
             self.K = [k0, k1]
             self.Permutation = permutation
             self.TAnd = [T1, T2, T3]
+
+        # Improved XOR Gates:
+        elif self.Op == GateType.XORImproved:
+            # 1. Output permutation bit
+            permutation = self.Left.Permutation ^ self.Right.Permutation
+
+            # 2. Translated keys
+            ki0 = F(self.Left.K[0], make_bitarray_with(self.Index, self.Left.Permutation))[:SIZE]
+            ki1 = F(self.Left.K[1], make_bitarray_with(self.Index, 1 ^ self.Left.Permutation))[:SIZE]
+
+            # 3. New offset
+            delta = ki0 ^ ki1
+
+            # 4. Translated keys for j (right)
+            if self.Right.Permutation == 0:
+                kj0 = self.Right.K[0]
+                kj1 = kj0 ^ delta
+                T = F(self.Right.K[1], make_bitarray_with(self.Index, 1))[:SIZE] ^ kj1
+            else:
+                kj1 = self.Right.K[1]
+                kj0 = kj1 ^ delta
+                T = F(self.Right.K[0], make_bitarray_with(self.Index, 1))[:SIZE] ^ kj0
+
+            # 5. Compute keys for output wire l
+            k0 = ki0 ^ kj0
+            k1 = k0 ^ delta
+
+            # 6. Do something with the result
+            self.K = [k0, k1]
+            self.Permutation = permutation
+            self.TXor = T
         else:
             print("Cannot garble a " + str(self.Op) + " gate!")
 
     def Evaluate(self):
+        # XOR Gates:
         if self.Op == GateType.XOR:
             vLeft = F(self.Left.Output, make_bitarray_with(self.Index, self.Left.Signal))[:SIZE]
             vRight = F(self.Right.Output, make_bitarray_with(self.Index, self.Right.Signal))[:SIZE]
@@ -202,6 +234,7 @@ class GarbledGate(CircuitGate):
             self.Signal = self.Left.Signal ^ self.Right.Signal
 
             print(str(self.Index) + "] sig -- " + str(self.Signal))
+        # AND Gates:
         elif self.Op == GateType.AND:
             if (self.Left.Signal + self.Right.Signal) == 0:
                 T = make_bitarray_with(0, 0)
@@ -210,6 +243,18 @@ class GarbledGate(CircuitGate):
             key = T ^ F(self.Left.Output, make_bitarray_with_2(self.Index, self.Left.Signal, self.Right.Signal)) ^ F(self.Right.Output, make_bitarray_with_2(self.Index, self.Left.Signal, self.Right.Signal))
             self.Output = key[:SIZE]
             self.Signal = key[SIZE]
+        # Improved XOR Gates:
+        elif self.Op == GateType.XORImproved:
+            if self.Right.Signal == 0:
+                # Note that since we know the signal is 0 we do not need to XOR with TXor
+                k = F(self.Left.Output, make_bitarray_with(self.Index, self.Left.Signal))[:SIZE] ^ self.Right.Output
+            else:
+                vLeft = F(self.Left.Output, make_bitarray_with(self.Index, self.Left.Signal))[:SIZE]
+                vRight = F(self.Right.Output, make_bitarray_with(self.Index, 0))[:SIZE]
+                k = vLeft ^ vRight ^ self.TXor
+
+            self.Output = k
+            self.Signal = self.Left.Signal ^ self.Right.Signal
         else:
             print("Cannot evaluate a " + str(self.Op) + " gate!")
 
@@ -331,7 +376,7 @@ input1 = InputGate(0)
 input2 = InputGate(1)
 ins = [input1, input2]
 
-xorGate = GarbledGate(2, GateType.AND, input1, input2)
+xorGate = GarbledGate(2, GateType.XORImproved, input1, input2)
 steps = [xorGate]
 
 outputGate = OutputGate(xorGate)
