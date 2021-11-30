@@ -7,18 +7,22 @@ import secrets
 import hashlib
 
 SIZE = 8 * 16  # underlying primitive size k
-MAGIC = 2863311530 # 101010101010101010... in binary
+MAGIC = 2863311530  # 101010101010101010... in binary
 
 
 def make_bitarray(i: int):
-    return int2ba(i, SIZE, endian='little')
+    """
+    returns a bitarray representing 'i' of size SIZE
+    """
+    return int2ba(i, SIZE, endian="little")
+
 
 def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
     """
-        input: A and B are bitarrays of size SIZE
-        returns a 2*SIZE bitarray
+    input: A and B are bitarrays of size SIZE
+    returns a 2*SIZE bitarray
     """
-    ia = int2ba(i, SIZE, endian='little')
+    ia = int2ba(i, SIZE, endian="little")
     food = A + B + ia
     hash = hashlib.sha256(food.tobytes()).digest()
     arr = bitarray()
@@ -27,10 +31,14 @@ def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
 
 
 def pick_random_pair():
+    """
+    returns a random pair of bitarrays of size SIZE
+    """
     rnd = secrets.token_bytes(32)
     arr = bitarray()
     arr.frombytes(rnd)
     return arr[:SIZE], arr[SIZE:]
+
 
 class GarbledGate:
     C: List[Tuple[bitarray, bitarray]]
@@ -38,7 +46,7 @@ class GarbledGate:
     right: int
     output: int
 
-    def __init__(self, gate : Gate):
+    def __init__(self, gate: Gate):
         self.left = gate.left
         self.right = gate.right
         self.output = gate.output
@@ -61,13 +69,13 @@ class GarbledCircuit:
     e: List[Tuple[bitarray, bitarray]]
     d: List[Tuple[bitarray, bitarray]]
 
-    def __init__(self, circuit : Circuit):
+    def __init__(self, circuit: Circuit):
         self.num_inputs = circuit.num_inputs
         self.input_sizes = circuit.input_sizes
         self.output_sizes = circuit.output_sizes
         self.num_wires = circuit.num_wires
 
-    def eval(self, *X) -> List[bitarray]:
+    def eval(self, *X: List[bitarray]) -> List[bitarray]:
         args = []
         for x in X:
             args.extend(x)
@@ -81,24 +89,26 @@ class GarbledCircuit:
                 cL, cR = gg.C[i]
                 k = gL ^ cL
                 t = gR ^ cR
-                if not t.any(): # check if all zero
+                if not t.any():  # check if all zero
                     wires[gg.output] = k
                     found = True
                     break
             if not found:
                 raise Exception("Error at gate: " + str(gg))
-        return wires[-sum(self.output_sizes):]
-
+        return wires[-sum(self.output_sizes) :]
 
 
 def garble(c: Circuit) -> GarbledCircuit:
+    """
+    returns a garbled circuit
+    """
     gc = GarbledCircuit(c)
     K = []
     for _ in range(c.num_wires):
         garbled_wire = pick_random_pair()
         K.append(garbled_wire)
-    gc.e = K[:sum(gc.input_sizes)]
-    gc.d = K[-sum(gc.output_sizes):]
+    gc.e = K[: sum(gc.input_sizes)]
+    gc.d = K[-sum(gc.output_sizes) :]
     gc.gates = []
     # Iterate over all gates
     for gate in c.gates:
@@ -115,11 +125,11 @@ def garble(c: Circuit) -> GarbledCircuit:
 
 
 def encode(e, xs):
-    z = [ e[i][x] for i, x in enumerate(xs) ]
+    z = [e[i][x] for i, x in enumerate(xs)]
     return z
 
 
-def decode(d, zs : List[bitarray]):
+def decode(d, zs: List[bitarray]):
     x = [-1] * len(zs)
     for i, z in enumerate(zs):
         Z0, Z1 = d[i]
@@ -154,10 +164,10 @@ if __name__ == "__main__":
     raw = f.read()
     c = Circuit(raw)
     print(c)
-    res = c.eval(bitarray([1,0,1,1]))
+    res = c.eval(bitarray([1, 0, 1, 1]))
     print(res)
     gc = garble(c)
     e = gc.e
-    res = gc.eval(encode(e, bitarray([1,0,1,1])))
+    res = gc.eval(encode(e, bitarray([1, 0, 1, 1])))
     res_dec = decode(gc.d, res)
     print(res_dec)
