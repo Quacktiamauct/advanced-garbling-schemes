@@ -34,6 +34,13 @@ def make_bitarray_with(i: int, b: int):
     return r
 
 
+def make_bitarray_with_2(i: int, a: int, b: int):
+    r = make_bitarray(i)
+    r.append(a)
+    r.append(b)
+    return r
+
+
 def zero(b: bitarray):
     for bit in b:
         if bit == 1:
@@ -82,6 +89,7 @@ class GarbledGate(CircuitGate):
         self.Right = right
         self.C = [(make_bitarray(MAGIC), make_bitarray(MAGIC))] * 4
         self.TXor = make_bitarray(MAGIC)
+        self.TAnd = [make_bitarray(MAGIC), make_bitarray(MAGIC), make_bitarray(MAGIC)]
 
     def Compute(self, left, right):
         if self.Op == GateType.NOT:
@@ -136,8 +144,8 @@ class GarbledGate(CircuitGate):
             k1 = k0 ^ delta
 
             # 6. Do something with the result
-            self.Permutation = permutation
             self.K = [k0, k1]
+            self.Permutation = permutation
             self.TXor = T
 
             print(str(self.Index) + "] pi  -- " + str(self.Permutation))
@@ -145,6 +153,35 @@ class GarbledGate(CircuitGate):
             print(str(self.Index) + "] k1  -- " + str(self.K[1]))
             print(str(self.Index) + "] T   -- " + str(self.TXor))
 
+        elif self.Op == GateType.AND:
+            # 1. Compute K0
+            K0 = F(self.Left.K[self.Left.Permutation], make_bitarray_with_2(self.Index, 0, 0))
+
+            # 2. Set output wires and permutation bits
+            if self.Left.Permutation == self.Right.Permutation and self.Right.Permutation == 1:
+                k0, _ = pick_random_pair()
+                permutation = secrets.randbits(1)
+                k1 = K0[:SIZE]
+            else:
+                k0 = K0[:SIZE]
+                permutation = K0[SIZE]
+                k1, _ = pick_random_pair()
+
+            Kl0 = k0.copy()
+            Kl0.append(permutation)
+            Kl1 = k1.copy()
+            Kl1.append(1 ^ permutation)
+            K = [Kl0, Kl1]
+
+            # 3. Compute gate ciphertexts
+            T1 = F(self.Left.K[self.Left.Permutation], make_bitarray_with_2(self.Index, 0, 1)) ^ F(self.Right.K[1 ^ self.Right.Permutation], make_bitarray_with_2(self.Index, 0, 1)) ^ K[self.Left.Permutation & (1 ^ self.Right.Permutation)]
+            T2 = F(self.Left.K[1 ^ self.Left.Permutation], make_bitarray_with_2(self.Index, 1, 0)) ^ F(self.Right.K[self.Right.Permutation], make_bitarray_with_2(self.Index, 1, 0)) ^ K[(1 ^ self.Left.Permutation) & self.Right.Permutation]
+            T3 = F(self.Left.K[1 ^ self.Left.Permutation], make_bitarray_with_2(self.Index, 1, 1)) ^ F(self.Right.K[1 ^ self.Right.Permutation], make_bitarray_with_2(self.Index, 1, 1)) ^ K[(1 ^ self.Left.Permutation) & (1 ^ self.Right.Permutation)]
+
+            # 4. Return
+            self.K = [k0, k1]
+            self.Permutation = permutation
+            self.TAnd = [T1, T2, T3]
         else:
             print("Cannot garble a " + str(self.Op) + " gate!")
 
@@ -165,6 +202,14 @@ class GarbledGate(CircuitGate):
             self.Signal = self.Left.Signal ^ self.Right.Signal
 
             print(str(self.Index) + "] sig -- " + str(self.Signal))
+        elif self.Op == GateType.AND:
+            if (self.Left.Signal + self.Right.Signal) == 0:
+                T = make_bitarray_with(0, 0)
+            else:
+                T = self.TAnd[(self.Left.Signal * 2 + self.Right.Signal) - 1]
+            key = T ^ F(self.Left.Output, make_bitarray_with_2(self.Index, self.Left.Signal, self.Right.Signal)) ^ F(self.Right.Output, make_bitarray_with_2(self.Index, self.Left.Signal, self.Right.Signal))
+            self.Output = key[:SIZE]
+            self.Signal = key[SIZE]
         else:
             print("Cannot evaluate a " + str(self.Op) + " gate!")
 
@@ -286,7 +331,7 @@ input1 = InputGate(0)
 input2 = InputGate(1)
 ins = [input1, input2]
 
-xorGate = GarbledGate(2, GateType.XOR, input1, input2)
+xorGate = GarbledGate(2, GateType.AND, input1, input2)
 steps = [xorGate]
 
 outputGate = OutputGate(xorGate)
@@ -296,7 +341,7 @@ all = [input1, input2, xorGate]
 circuit = FastCircuit(all, ins, outs, steps)
 
 # Garble
-a = 1
+a = 0
 b = 0
 print("##### Garble")
 circuit.Garble()
