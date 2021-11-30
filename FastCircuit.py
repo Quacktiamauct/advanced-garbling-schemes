@@ -61,6 +61,12 @@ def F(left: bitarray, right: bitarray) -> bitarray:
     food = left + right
     arr = bitarray()
     arr.frombytes(hashlib.sha256(food.tobytes()).digest())
+
+    print("F(...) invoked:")
+    print("<- " + str(left))
+    print("<- " + str(right))
+    print("-> " + str(arr[:EXTENDED_SIZE]))
+
     return arr[:EXTENDED_SIZE]
 
 
@@ -339,11 +345,11 @@ class GarbledGate(CircuitGate):
             signals = 2 * self.Left.Signal + self.Right.Signal
             print(str(self.Index) + "] sigs-- " + str(signals))
 
-            if signals == 3:
+            if signals == 0:
                 self.Output = k
-            elif signals == 2:
-                self.Output = k ^ self.TAnd[0]
             elif signals == 1:
+                self.Output = k ^ self.TAnd[0]
+            elif signals == 2:
                 self.Output = k ^ self.TAnd[1]
             else:
                 self.Output = k ^ self.TAnd[0] ^ self.TAnd[1]
@@ -410,16 +416,8 @@ class OutputGate:
         print("X] d0  <- " + str(self.D[0]))
         print("X] d1  <- " + str(self.D[1]))
 
-        print("Evaluating garble:")
-        print("> " + str(g.K[1 ^ g.Permutation]))
-        print("> " + str(arr))
-
     def Evaluate(self):
-        print("Evaluating output:")
-        print("> " + str(self.Value.Output))
         arr = make_bitarray_with(self.Value.Index, self.Value.Signal)
-        print("> " + str(arr))
-
         output = F(self.Value.Output, arr)
         self.Value.Output = output
         print("X] out <- " + str(self.Value.Output))
@@ -483,7 +481,7 @@ circuit = FastCircuit(all, ins, outs, steps)
 
 # Garble
 a = 1
-b = 1
+b = 0
 print("##### Garble")
 circuit.Garble()
 print("##### Encode")
