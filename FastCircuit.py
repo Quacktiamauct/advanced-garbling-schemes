@@ -14,13 +14,14 @@ class GateType(Enum):
     XOR = 2,
     OR = 3,
     NAND = 4,
-    XORImproved = 5
+    XORImproved = 5,
+    ANDImproved = 6
 
 
 #SIZE = 128
 #MAGIC = 2863311530 # 101010101010101010... in binary
 
-SIZE = 8
+SIZE = 4
 MAGIC = 0
 EXTENDED_SIZE = SIZE + 1
 
@@ -103,6 +104,12 @@ class GarbledGate(CircuitGate):
             return left | right
         if self.Op == GateType.NAND:
             return (left & right) ^ 1
+
+    def index(self, a: int) -> bitarray:
+        return make_bitarray_with(self.Index, a)
+
+    def index2(self, a: int, b: int) -> bitarray:
+        return make_bitarray_with_2(self.Index, a, b)
 
     def Garble(self):
         super(GarbledGate, self).Garble()
@@ -213,6 +220,67 @@ class GarbledGate(CircuitGate):
             self.K = [k0, k1]
             self.Permutation = permutation
             self.TXor = T
+
+        # Improved AND Gates
+        elif self.Op == GateType.ANDImproved:
+            # 1. Compute keys
+            K0F = F(self.Left.K[self.Left.Permutation], self.index2(0, 0)) ^ F(self.Right.K[self.Right.Permutation], self.index2(0, 0))
+            K1F = F(self.Left.K[self.Left.Permutation], self.index2(0, 1)) ^ F(self.Right.K[1 ^ self.Right.Permutation], self.index2(0, 1))
+            K2F = F(self.Left.K[1 ^ self.Left.Permutation], self.index2(1, 0)) ^ F(self.Right.K[self.Right.Permutation], self.index2(1, 0))
+            K3F = F(self.Left.K[1 ^ self.Left.Permutation], self.index2(1, 1)) ^ F(self.Right.K[1 ^ self.Right.Permutation], self.index2(1, 1))
+            K0, m0 = [K0F[:SIZE], K0F[SIZE]]
+            K1, m1 = [K1F[:SIZE], K1F[SIZE]]
+            K2, m2 = [K2F[:SIZE], K2F[SIZE]]
+            K3, m3 = [K3F[:SIZE], K3F[SIZE]]
+
+            # 2. Compute the location of 1 in the truth table
+            s = 2 * (1 ^ self.Left.Permutation) + (1 ^ self.Right.Permutation)
+
+            # 3. Output wire keys and permutation bits
+            permutation = secrets.randbits(1)
+            if s != 0:
+                k0 = K0
+                k1 = K1 ^ K2 ^ K3
+            else:
+                k0 = K1 ^ K2 ^ K3
+                k1 = K0
+
+            # 4. Compute T1, T2
+            # 5. Compute additional 4 bits
+            t = [
+                m0 ^ permutation,
+                m1 ^ permutation,
+                m2 ^ permutation,
+                m3 ^ permutation,
+            ]
+            if s == 3:
+                T1 = K0 ^ K1
+                T2 = K0 ^ K2
+                t[3] = m3 ^ (1 ^ permutation)
+            elif s == 2:
+                T1 = K0 ^ K1
+                T2 = K1 ^ K3
+                t[2] = m2 ^ (1 ^ permutation)
+            elif s == 1:
+                T1 = K2 ^ K3
+                T2 = K0 ^ K2
+                t[1] = m1 ^ (1 ^ permutation)
+            else:
+                T1 = K2 ^ K3
+                T2 = K1 ^ K3
+                t[0] = m0 ^ (1 ^ permutation)
+
+            self.Permutation = permutation
+            self.K = [k0, k1]
+            self.TAnd = [T1, T2]
+            self.t = t
+
+            print(str(self.Index) + "] s   -- " + str(s))
+            print(str(self.Index) + "] pi  -- " + str(self.Permutation))
+            print(str(self.Index) + "] k0  -- " + str(self.K[0]))
+            print(str(self.Index) + "] k1  -- " + str(self.K[1]))
+            print(str(self.Index) + "] T   -- " + str(self.TAnd))
+            print(str(self.Index) + "] t   -- " + str(self.t))
         else:
             print("Cannot garble a " + str(self.Op) + " gate!")
 
@@ -255,6 +323,34 @@ class GarbledGate(CircuitGate):
 
             self.Output = k
             self.Signal = self.Left.Signal ^ self.Right.Signal
+        # Improved AND Gates:
+        elif self.Op == GateType.ANDImproved:
+            KF = F(self.Left.Output, self.index2(self.Left.Signal, self.Right.Signal)) ^ F(self.Right.Output, self.index2(self.Left.Signal, self.Right.Signal))
+            k, m = [KF[:SIZE], KF[SIZE]]
+
+            print(str(self.Index) + "] lk  -- " + str(self.Left.Output))
+            print(str(self.Index) + "] li  -- " + str(self.index2(self.Left.Signal, self.Right.Signal)))
+            print(str(self.Index) + "] rk  -- " + str(self.Right.Output))
+            print(str(self.Index) + "] ri  -- " + str(self.index2(self.Left.Signal, self.Right.Signal)))
+
+            print(str(self.Index) + "] k   -- " + str(k))
+            print(str(self.Index) + "] m   -- " + str(m))
+
+            signals = 2 * self.Left.Signal + self.Right.Signal
+            print(str(self.Index) + "] sigs-- " + str(signals))
+
+            if signals == 3:
+                self.Output = k
+            elif signals == 2:
+                self.Output = k ^ self.TAnd[0]
+            elif signals == 1:
+                self.Output = k ^ self.TAnd[1]
+            else:
+                self.Output = k ^ self.TAnd[0] ^ self.TAnd[1]
+            self.Signal = m ^ self.t[signals]
+
+            print(str(self.Index) + "] sig -- " + str(self.Signal))
+            print(str(self.Index) + "] out -- " + str(self.Output))
         else:
             print("Cannot evaluate a " + str(self.Op) + " gate!")
 
@@ -376,7 +472,7 @@ input1 = InputGate(0)
 input2 = InputGate(1)
 ins = [input1, input2]
 
-xorGate = GarbledGate(2, GateType.XORImproved, input1, input2)
+xorGate = GarbledGate(2, GateType.ANDImproved, input1, input2)
 steps = [xorGate]
 
 outputGate = OutputGate(xorGate)
@@ -386,8 +482,8 @@ all = [input1, input2, xorGate]
 circuit = FastCircuit(all, ins, outs, steps)
 
 # Garble
-a = 0
-b = 0
+a = 1
+b = 1
 print("##### Garble")
 circuit.Garble()
 print("##### Encode")
