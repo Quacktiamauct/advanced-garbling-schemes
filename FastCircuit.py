@@ -21,7 +21,7 @@ class GateType(Enum):
 #SIZE = 128
 #MAGIC = 2863311530 # 101010101010101010... in binary
 
-SIZE = 4
+SIZE = 8
 MAGIC = 0
 EXTENDED_SIZE = SIZE + 1
 
@@ -287,6 +287,13 @@ class GarbledGate(CircuitGate):
             print(str(self.Index) + "] k1  -- " + str(self.K[1]))
             print(str(self.Index) + "] T   -- " + str(self.TAnd))
             print(str(self.Index) + "] t   -- " + str(self.t))
+
+        # NOT Gate
+        # by convention the left input will be the only input to the NOT gate
+        elif self.Op == GateType.NOT:
+            #self.Index = self.Left.Index
+            self.Permutation = self.Left.Permutation
+            self.K = [self.Left.K[1], self.Left.K[0]]
         else:
             print("Cannot garble a " + str(self.Op) + " gate!")
 
@@ -357,6 +364,11 @@ class GarbledGate(CircuitGate):
 
             print(str(self.Index) + "] sig -- " + str(self.Signal))
             print(str(self.Index) + "] out -- " + str(self.Output))
+        # NOT Gate
+        # by convention the left input will be the only input to the NOT gate
+        elif self.Op == GateType.NOT:
+            self.Signal = 1 ^ self.Left.Signal
+            self.Output = self.Left.Output
         else:
             print("Cannot evaluate a " + str(self.Op) + " gate!")
 
@@ -411,8 +423,7 @@ class OutputGate:
         #self.D[1] = F(g.K[1 ^ g.Permutation], arr)
         # TODO: Changing it to this seems to fix the issue, but I do not think this is correct!
         self.D[0] = F(g.K[0], make_bitarray_with(g.Index, g.Permutation))
-        arr = make_bitarray_with(g.Index, 1 ^ g.Permutation)
-        self.D[1] = F(g.K[1], arr)
+        self.D[1] = F(g.K[1], make_bitarray_with(g.Index, 1 ^ g.Permutation))
         print("X] d0  <- " + str(self.D[0]))
         print("X] d1  <- " + str(self.D[1]))
 
@@ -470,7 +481,7 @@ input1 = InputGate(0)
 input2 = InputGate(1)
 ins = [input1, input2]
 
-xorGate = GarbledGate(2, GateType.ANDImproved, input1, input2)
+xorGate = GarbledGate(2, GateType.NOT, input1, input2)
 steps = [xorGate]
 
 outputGate = OutputGate(xorGate)
