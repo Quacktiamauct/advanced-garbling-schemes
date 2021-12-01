@@ -75,15 +75,27 @@ class GarbledCircuit:
         self.output_sizes = circuit.output_sizes
         self.num_wires = circuit.num_wires
 
-    def eval(self, *X: List[bitarray]) -> List[bitarray]:
-        args = []
-        for x in X:
-            args.extend(x)
+
+    def eval(self, *args: bitarray):
+        """
+            args: unencoded input
+            returns: unencoded output
+        """
+        arg = bitarray()
+        for a in args:
+            arg += a
+        return self.decode(self.eval_enc(self.encode(arg)))
+
+    def eval_enc(self, X: List[bitarray]) -> List[bitarray]:
+        """
+        X is a list of bitarrays of size SIZE (being an encoded)
+        returns a list of bitarrays of size SIZE
+        """
         wires = [e[0] for e in self.e] # default all wires to zero
         extra = [bitarray() for _ in range(self.num_wires - sum(self.input_sizes))]
         wires.extend(extra) # extend with rest of wires
-        for i, a in enumerate(args):
-            wires[i] = a
+        for i, x in enumerate(X):
+            wires[i] = x
         for gg in self.gates:
             found = False
             gL, gR = G(wires[gg.left], wires[gg.right], gg.output)
@@ -102,6 +114,24 @@ class GarbledCircuit:
                 print("num of wires:", len(wires))
                 raise Exception("Error: wire is empty. All wires has to be evaluated")
         return wires[-sum(self.output_sizes) :]
+
+    def encode(self, xs):
+        if len(self.e) != len(xs):
+            raise Exception(f"Encoding error: {len(self.e)} != {len(xs)}")
+        z = [self.e[i][x] for i, x in enumerate(xs)]
+        return z
+
+    def decode(self, zs: List[bitarray]):
+        x = [-1] * len(zs)
+        for i, z in enumerate(zs):
+            Z0, Z1 = self.d[i]
+            if z == Z0:
+                x[i] = 0
+            elif z == Z1:
+                x[i] = 1
+            else:
+                raise Exception("Error at decode, no valid Z")
+        return bitarray(x)
 
 
 def garble(c: Circuit) -> GarbledCircuit:
@@ -130,24 +160,8 @@ def garble(c: Circuit) -> GarbledCircuit:
     return gc
 
 
-def encode(e, xs):
-    if len(e) != len(xs):
-        raise Exception(f"Encoding error: {len(e)} != {len(xs)}")
-    z = [e[i][x] for i, x in enumerate(xs)]
-    return z
 
 
-def decode(d, zs: List[bitarray]):
-    x = [-1] * len(zs)
-    for i, z in enumerate(zs):
-        Z0, Z1 = d[i]
-        if z == Z0:
-            x[i] = 0
-        elif z == Z1:
-            x[i] = 1
-        else:
-            raise Exception("Error at decode, no valid Z")
-    return bitarray(x)
 
 
 if __name__ == "__main__":
@@ -171,13 +185,10 @@ if __name__ == "__main__":
     f = open("./bristol/adder64.txt")
     raw = f.read()
     c = Circuit(raw)
-    print(c)
-    ins = int2ba(1, 64, 'little')
-    # ins = int2ba(5, 64, 'little') + int2ba(7, 64, 'little')
-    res = c.eval(ins, ins)
+    a = int2ba(5, 64, 'little')
+    b = int2ba(7, 64, 'little')
+    res = c.eval(a, b)
     print(res)
     gc = garble(c)
-    e = gc.e
-    res = gc.eval(encode(e, ins), encode(e, ins))
-    res_dec = decode(gc.d, res)
-    print(res_dec)
+    res = gc.eval(a, b)
+    print(res)
