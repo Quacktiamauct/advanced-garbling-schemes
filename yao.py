@@ -1,7 +1,7 @@
 import itertools
 from bitarray import bitarray
-from bitarray.util import int2ba, ba2int
-from circuits import Circuit, Gate, Operation
+from bitarray.util import int2ba
+from circuits import Circuit, Gate
 from typing import Tuple, List
 import secrets
 import hashlib
@@ -79,7 +79,9 @@ class GarbledCircuit:
         args = []
         for x in X:
             args.extend(x)
-        wires = [bitarray()] * self.num_wires
+        wires = [e[0] for e in self.e] # default all wires to zero
+        extra = [bitarray() for _ in range(self.num_wires - sum(self.input_sizes))]
+        wires.extend(extra) # extend with rest of wires
         for i, a in enumerate(args):
             wires[i] = a
         for gg in self.gates:
@@ -95,6 +97,10 @@ class GarbledCircuit:
                     break
             if not found:
                 raise Exception("Error at gate: " + str(gg))
+        for wire in wires:
+            if len(wire) == 0:
+                print("num of wires:", len(wires))
+                raise Exception("Error: wire is empty. All wires has to be evaluated")
         return wires[-sum(self.output_sizes) :]
 
 
@@ -125,6 +131,8 @@ def garble(c: Circuit) -> GarbledCircuit:
 
 
 def encode(e, xs):
+    if len(e) != len(xs):
+        raise Exception(f"Encoding error: {len(e)} != {len(xs)}")
     z = [e[i][x] for i, x in enumerate(xs)]
     return z
 
@@ -138,7 +146,7 @@ def decode(d, zs: List[bitarray]):
         elif z == Z1:
             x[i] = 1
         else:
-            raise Exception("Error at decode")
+            raise Exception("Error at decode, no valid Z")
     return bitarray(x)
 
 
@@ -160,14 +168,16 @@ if __name__ == "__main__":
     # orGate = Gate(Operation.OR, 4, 5, 6)
     # steps = [andGate, xorGate, orGate]
     # c = Circuit(1, [4], 1, [1], 7, steps)
-    f = open("./bristol/test.txt")
+    f = open("./bristol/adder64.txt")
     raw = f.read()
     c = Circuit(raw)
     print(c)
-    res = c.eval(bitarray([1, 0, 1, 1]))
+    ins = int2ba(1, 64, 'little')
+    # ins = int2ba(5, 64, 'little') + int2ba(7, 64, 'little')
+    res = c.eval(ins, ins)
     print(res)
     gc = garble(c)
     e = gc.e
-    res = gc.eval(encode(e, bitarray([1, 0, 1, 1])))
+    res = gc.eval(encode(e, ins), encode(e, ins))
     res_dec = decode(gc.d, res)
     print(res_dec)
