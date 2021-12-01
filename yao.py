@@ -1,7 +1,7 @@
 import itertools
 from bitarray import bitarray
 from bitarray.util import int2ba, ba2int
-from circuits import Circuit, Gate
+from circuits import Circuit, Gate, Operation
 from typing import Tuple, List
 import secrets
 import hashlib
@@ -45,12 +45,14 @@ class GarbledGate:
     left: int
     right: int
     output: int
+    unary: bool
 
     def __init__(self, gate: Gate):
         self.left = gate.left
         self.right = gate.right
         self.output = gate.output
         self.C = [(make_bitarray(MAGIC), make_bitarray(MAGIC))] * 4
+        self.unary = gate.operation == Operation.INV
 
     def permute(self):
         permute = secrets.choice(list(itertools.permutations([0, 1, 2, 3])))
@@ -68,20 +70,23 @@ class GarbledCircuit:
     gates: List[GarbledGate]
     e: List[Tuple[bitarray, bitarray]]
     d: List[Tuple[bitarray, bitarray]]
+    num_in_wires: int
+    num_out_wires: int
 
     def __init__(self, circuit: Circuit):
         self.num_inputs = circuit.num_inputs
         self.input_sizes = circuit.input_sizes
         self.output_sizes = circuit.output_sizes
         self.num_wires = circuit.num_wires
-
+        self.num_in_wires = sum(self.input_sizes)
+        self.num_out_wires = sum(self.output_sizes)
 
     def eval(self, *args: bitarray):
         """
-            args: unencoded input
-            returns: unencoded output
+        args: unencoded input
+        returns: unencoded output
         """
-        arg = bitarray(endian='little')
+        arg = bitarray(endian="little")
         for a in args:
             arg += a
         return self.decode(self.eval_enc(self.encode(arg)))
@@ -91,9 +96,11 @@ class GarbledCircuit:
         X is a list of bitarrays of size SIZE (being an encoded)
         returns a list of bitarrays of size SIZE
         """
-        wires = [e[0] for e in self.e] # default all wires to zero
-        extra = [bitarray(endian='little') for _ in range(self.num_wires - sum(self.input_sizes))]
-        wires.extend(extra) # extend with rest of wires
+        wires = [e[0] for e in self.e]  # default all wires to zero
+        extra = [
+            bitarray(endian="little") for _ in range(self.num_wires - self.num_in_wires)
+        ]
+        wires.extend(extra)  # extend with rest of wires not used for input
         for i, x in enumerate(X):
             wires[i] = x
         for gg in self.gates:
@@ -131,7 +138,7 @@ class GarbledCircuit:
                 x[i] = 1
             else:
                 raise Exception("Error at decode, no valid Z")
-        return bitarray(x, endian='little')
+        return bitarray(x, endian="little")
 
 
 def garble(c: Circuit) -> GarbledCircuit:
@@ -160,35 +167,18 @@ def garble(c: Circuit) -> GarbledCircuit:
     return gc
 
 
-
-
-
-
 if __name__ == "__main__":
-    # f = open("./bristol/adder64.txt")
-    # raw = f.read()
-    # c = Circuit(raw)
-    # gc = garble(c)
-    # a = int2ba(7, 64, endian='little')
-    # b = int2ba(5, 64, endian='little')
-    # e = gc.e
-    # enc_a = encode(e, a)
-    # enc_b = encode(e, b)
-    # ab = gc.eval(enc_a, enc_b)
-    # dec_ab = decode(gc.d, ab)
-    # print(ba2int(dec_ab))
-    # andGate = Gate(Operation.AND, 0, 1, 4)
-    # xorGate = Gate(Operation.XOR, 2, 3, 5)
-    # orGate = Gate(Operation.OR, 4, 5, 6)
-    # steps = [andGate, xorGate, orGate]
-    # c = Circuit(1, [4], 1, [1], 7, steps)
     f = open("./bristol/adder64.txt")
-    raw = f.read()
-    c = Circuit(raw)
-    a = int2ba(1, 64, 'little')
-    b = int2ba(1, 64, 'little')
-    res = c.eval(a, b)
-    print(f"{ba2int(a)} + {ba2int(b)} = {ba2int(res)}")
+    c = Circuit(f.read())
+    a = int2ba(5, 64, "little")
+    b = int2ba(7, 64, "little")
     gc = garble(c)
     res = gc.eval(a, b)
     print(f"{ba2int(a)} + {ba2int(b)} = {ba2int(res)}")
+    f = open("./bristol/mult64.txt")
+    c = Circuit(f.read())
+    a = int2ba(5, 64, "little")
+    b = int2ba(3, 64, "little")
+    gc = garble(c)
+    res = gc.eval(a, b)
+    print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")

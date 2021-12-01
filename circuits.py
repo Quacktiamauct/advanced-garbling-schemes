@@ -69,6 +69,8 @@ class Circuit:
         self.num_outputs = num_outputs
         self.output_sizes = output_sizes
         self.num_wires = num_wires
+        self.num_in_wires = sum(input_sizes)
+        self.num_out_wires = sum(output_sizes)
         self.gates = gates
 
     def __str__(self):
@@ -117,9 +119,8 @@ class Circuit:
         Parse a string into a circuit.
         """
         rows = raw.split("\n")
-        num_gates, num_wires = rows[0].strip().split(" ")
-        num_gates = int(num_gates)
-        c_num_wires = int(num_wires)
+        _, num_wires_str = rows[0].strip().split(" ")
+        c_num_wires = int(num_wires_str)
         c_num_inputs = int(rows[1].strip().split(" ")[0])
         c_input_sizes = [int(i) for i in rows[1].strip().split(" ")[1:]]
         c_num_outputs = int(rows[2].strip().split(" ")[0])
@@ -129,8 +130,7 @@ class Circuit:
             if r == "":
                 continue
             tmp = r.strip().split(" ")
-            num_inputs = tmp[0]
-            num_inputs = int(num_inputs)
+            num_inputs = int(tmp[0])
             input_wires = [int(a) for a in tmp[2 : 2 + num_inputs]]
             output_wires = [int(a) for a in tmp[2 + num_inputs : -1]]
             operation = tmp[-1]
