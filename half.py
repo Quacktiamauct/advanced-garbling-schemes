@@ -25,7 +25,7 @@ def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
     ia = int2ba(i, SIZE, endian="little")
     food = A + B + ia
     hash = hashlib.sha256(food.tobytes()).digest()
-    arr = bitarray(endian='little')
+    arr = bitarray(endian="little")
     arr.frombytes(hash)
     return arr[SIZE:], arr[:SIZE]
 
@@ -101,7 +101,7 @@ class GarbledCircuit:
         j_prime = 0
         wires = [bitarray()] * c.num_wires
         zero = zeros(SIZE)
-        for i,x in enumerate(X):
+        for i, x in enumerate(X):
             wires[i] = x
         for gate in self.gates:
             a = gate.left
@@ -112,8 +112,8 @@ class GarbledCircuit:
             else:
                 sa = wires[a][-1]
                 sb = wires[b][-1]
-                j &= 1
-                j_prime &= 1
+                j += 1
+                j_prime += 1
                 tg, te = gate.F
                 wg = H(wires[a], j) ^ (tg if sa else zero)
                 we = H(wires[b], j_prime) ^ (te ^ wires[a] if sb else zero)
@@ -124,13 +124,13 @@ class GarbledCircuit:
         if len(self.e) != len(xs):
             raise Exception(f"Encoding error: {len(self.e)} != {len(xs)}")
         zero = zeros(SIZE)
-        z = [self.e[i] ^ (self.R if x else zero) for i,x in enumerate(xs)]
+        z = [self.e[i] ^ (self.R if x else zero) for i, x in enumerate(xs)]
         return z
 
     def decode(self, zs: List[bitarray]):
         if len(self.d) != len(zs):
             raise Exception(f"Decoding error: {len(self.d)} != {len(zs)}")
-        x = [d ^ zs[i][-1] for i,d in enumerate(self.d)]
+        x = [d ^ zs[i][-1] for i, d in enumerate(self.d)]
         # return self.d ^ zs[:][-1]
         return bitarray(x, endian="little")
 
@@ -138,6 +138,7 @@ class GarbledCircuit:
 def rnd_bitarray(size):
     i = secrets.randbits(size)
     return int2ba(i, size)
+
 
 def H(A: bitarray, i: int):
     """
@@ -149,8 +150,8 @@ def H(A: bitarray, i: int):
     hash = hashlib.sha256(food.tobytes()).digest()
     arr = bitarray()
     arr.frombytes(hash)
-    return arr[SIZE:]
-        
+    return arr[:SIZE]
+
 
 def garble(c: Circuit) -> GarbledCircuit:
     """
@@ -163,9 +164,13 @@ def garble(c: Circuit) -> GarbledCircuit:
     gc.R = R
     W = [[bitarray(), bitarray()]] * c.num_wires
     for i in range(c.num_in_wires):
-        W[i][0] = rnd_bitarray(SIZE)
+        W[i][0] = rnd_bitarray(SIZE) # FIX: lack of randomness
         W[i][1] = W[i][0] ^ R
-    gc.e = [w[0] for w in W[:c.num_in_wires]]
+
+    for w in W[:c.num_in_wires]:
+        print(w[0])
+        print(w[1])
+    gc.e = [w[0] for w in W[: c.num_in_wires]]
     j = 0
     j_prime = 0
     # Iterate over all gates
@@ -177,10 +182,10 @@ def garble(c: Circuit) -> GarbledCircuit:
         b = gate.right
         if gate.operation == Operation.XOR:
             W[i][0] = W[a][0] ^ W[b][0]
-        else: # TODO: NEG gate?
-            p_a = bitarray(W[a][0][-1]) # lsb
-            p_b = bitarray(W[b][0][-1]) # lsb
-            j += 1
+        else:  # TODO: NEG gate?
+            p_a = bitarray(W[a][0][-1])  # lsb
+            p_b = bitarray(W[b][0][-1])  # lsb
+            j += 1  # TODO: NextIndex? find out what that actually is
             j_prime += 1
             # first half-gate
             tg = H(W[a][0], j) ^ H(W[a][1], j) ^ (R if p_b else zero)
@@ -192,7 +197,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             W[i][0] = wg ^ we
             garbled.F = tg, te
         gc.gates.append(garbled)
-    gc.d = bitarray([w[0][-1] for w in W[-c.num_out_wires:]])
+    gc.d = bitarray([w[0][-1] for w in W[-c.num_out_wires :]])
     return gc
 
 
@@ -204,10 +209,10 @@ if __name__ == "__main__":
     gc = garble(c)
     res = gc.eval(a, b)
     print(f"{ba2int(a)} + {ba2int(b)} = {ba2int(res)}")
-    f = open("./bristol/mult64.txt")
-    c = Circuit(f.read())
-    a = int2ba(5, 64, "little")
-    b = int2ba(3, 64, "little")
-    gc = garble(c)
-    res = gc.eval(a, b)
-    print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
+    # f = open("./bristol/mult64.txt")
+    # c = Circuit(f.read())
+    # a = int2ba(5, 64, "little")
+    # b = int2ba(3, 64, "little")
+    # gc = garble(c)
+    # res = gc.eval(a, b)
+    # print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
