@@ -12,11 +12,13 @@ MAGIC = 2863311530  # 101010101010101010... in binary
 
 EXTENDED_SIZE = SIZE + 1
 
+
 def make_bitarray(i: int):
     """
     returns a bitarray representing 'i' of size SIZE
     """
     return int2ba(i, SIZE, endian="little")
+
 
 def make_bitarray_with(i: int, b: int):
     r = make_bitarray(i)
@@ -32,7 +34,7 @@ def make_bitarray_with_2(i: int, a: int, b: int):
 
 
 def make_bitarray(i: int):
-    return int2ba(i, SIZE, endian='little')
+    return int2ba(i, SIZE, endian="little")
 
 
 def F(left: bitarray, index: int, perm: int) -> bitarray:
@@ -40,10 +42,11 @@ def F(left: bitarray, index: int, perm: int) -> bitarray:
     right.append(perm)
 
     food = left + right
-    arr = bitarray(endian='little')
+    arr = bitarray(endian="little")
     arr.frombytes(hashlib.sha256(food.tobytes()).digest())
 
     return arr[:EXTENDED_SIZE]
+
 
 def F2(left: bitarray, index: int, permLeft: int, permRight: int) -> bitarray:
     right = make_bitarray(index)
@@ -62,7 +65,7 @@ def pick_random_pair():
     returns a random pair of bitarrays of size SIZE
     """
     rnd = secrets.token_bytes(32)
-    arr = bitarray(endian='little')
+    arr = bitarray(endian="little")
     arr.frombytes(rnd)
     return arr[:SIZE], arr[SIZE:]
 
@@ -126,7 +129,7 @@ class GarbledCircuit:
         returns a list of bitarrays of size SIZE
         """
         signal = [-1] * self.num_wires
-        wires = [bitarray(endian='big')] * self.num_wires
+        wires = [bitarray(endian="big")] * self.num_wires
         for i, x in enumerate(X):
             wires[i] = x[:SIZE]
             signal[i] = x[SIZE]
@@ -141,7 +144,11 @@ class GarbledCircuit:
                     T = make_bitarray_with(0, 0)
                 else:
                     T = gate.C[(signal[l] * 2 + signal[r]) - 1]
-                key = T ^ F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])
+                key = (
+                    T
+                    ^ F2(wires[l], gate.output, signal[l], signal[r])
+                    ^ F2(wires[r], gate.output, signal[l], signal[r])
+                )
 
                 wires[gate.output] = key[:SIZE]
                 signal[gate.output] = key[SIZE]
@@ -174,7 +181,9 @@ class GarbledCircuit:
         for i, wire in enumerate(wires):
             if len(wire) == 0:
                 print("num of wires:", len(wires))
-                raise Exception(f"Error: wire {i} is empty. All wires have to be evaluated")
+                raise Exception(
+                    f"Error: wire {i} is empty. All wires have to be evaluated"
+                )
 
         return wires[-sum(self.output_sizes) :]
 
@@ -225,7 +234,7 @@ def garble(c: Circuit) -> GarbledCircuit:
         e1 = k1.copy()
         e1.append(1 ^ perm)
         gc.e.append((e0, e1))
-    
+
     gc.gates = []
     # Iterate over all gates
     for gate in c.gates:
@@ -233,11 +242,16 @@ def garble(c: Circuit) -> GarbledCircuit:
         # AND Gate
         if gate.operation == Operation.AND:
             # 1. Compute K0
-            K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ^ F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)
-            #K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0)
+            K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ^ F2(
+                K[gate.right][permutation[gate.right]], gate.output, 0, 0
+            )
+            # K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0)
 
             # 2. Set output wires and permutaion bit
-            if permutation[gate.left] == permutation[gate.right] and permutation[gate.left] == 1:
+            if (
+                permutation[gate.left] == permutation[gate.right]
+                and permutation[gate.left] == 1
+            ):
                 k0, _ = pick_random_pair()
                 perm = secrets.randbits(1)
                 k1 = K0[:SIZE]
@@ -251,17 +265,23 @@ def garble(c: Circuit) -> GarbledCircuit:
             kl1 = k1.copy()
             kl1.append(1 ^ perm)
             k = [kl0, kl1]
-            
+
             # 3. Compute gate ciphertexts
-            T1 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 1) ^ \
-                 F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 0, 1) ^ \
-                 k[permutation[gate.left] & (1 ^ permutation[gate.right])]
-            T2 = F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 0) ^ \
-                 F2(K[gate.right][permutation[gate.right]], gate.output, 1, 0) ^ \
-                 k[(1 ^ permutation[gate.left]) & permutation[gate.right]]
-            T3 = F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 1) ^ \
-                 F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 1, 1) ^ \
-                 k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]
+            T1 = (
+                F2(K[gate.left][permutation[gate.left]], gate.output, 0, 1)
+                ^ F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 0, 1)
+                ^ k[permutation[gate.left] & (1 ^ permutation[gate.right])]
+            )
+            T2 = (
+                F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 0)
+                ^ F2(K[gate.right][permutation[gate.right]], gate.output, 1, 0)
+                ^ k[(1 ^ permutation[gate.left]) & permutation[gate.right]]
+            )
+            T3 = (
+                F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 1)
+                ^ F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 1, 1)
+                ^ k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]
+            )
 
             # 4. Set the values
             K[gate.output] = [k0, k1]
@@ -307,10 +327,18 @@ def garble(c: Circuit) -> GarbledCircuit:
             r = gate.right
 
             # 1. Compute keys
-            K0F = F2(K[l][permutation[l]], gate.output, 0, 0) ^ F2(K[r][permutation[r]], 0, 0)
-            K1F = F2(K[l][permutation[l]], gate.output, 0, 1) ^ F2(K[r][1 ^ permutation[r]], 0, 1)
-            K2F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 0) ^ F2(K[r][permutation[r]], 1, 0)
-            K3F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 1) ^ F2(K[r][1 ^ permutation[r]], 1, 1)
+            K0F = F2(K[l][permutation[l]], gate.output, 0, 0) ^ F2(
+                K[r][permutation[r]], 0, 0
+            )
+            K1F = F2(K[l][permutation[l]], gate.output, 0, 1) ^ F2(
+                K[r][1 ^ permutation[r]], 0, 1
+            )
+            K2F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 0) ^ F2(
+                K[r][permutation[r]], 1, 0
+            )
+            K3F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 1) ^ F2(
+                K[r][1 ^ permutation[r]], 1, 1
+            )
             K0, m0 = [K0F[:SIZE], K0F[SIZE]]
             K1, m1 = [K1F[:SIZE], K1F[SIZE]]
             K2, m2 = [K2F[:SIZE], K2F[SIZE]]
@@ -387,7 +415,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             K[gate.output] = [k0, k1]
             permutation[gate.output] = perm
             garbled.C = [T]
-        
+
         gc.gates.append(garbled)
 
     # 3. Prepare decoding information
