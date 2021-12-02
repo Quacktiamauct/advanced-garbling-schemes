@@ -102,8 +102,11 @@ class GarbledGate:
     def __str__(self):
         return f"{self.left} {self.right} {self.output}"
 
-expected_bit = -1
-actual_bit = -1
+def dprint(s):
+    if False:
+        print(s)
+    else:
+        return
 
 class GarbledCircuit:
     num_inputs: int
@@ -145,10 +148,10 @@ class GarbledCircuit:
             wires[i] = x[:SIZE]
             signal[i] = x[SIZE]
 
-            #print("> Input " + str(i))
-            #print("sig = " + str(signal[i]))
-            #print("val   = " + str(wires[i]))
-            #print("")
+            dprint("> Input " + str(i))
+            dprint("sig = " + str(signal[i]))
+            dprint("val   = " + str(wires[i]))
+            dprint("")
 
         for gate in self.gates:
             l = gate.left
@@ -169,15 +172,15 @@ class GarbledCircuit:
                 wires[gate.output] = key[:SIZE]
                 signal[gate.output] = key[SIZE]
 
-                #print("> AND " + str(i))
-                #print("sig = " + str(signal[gate.output]))
-                #print("val = " + str(wires[gate.output]))
-                #print("T   = " + str(T))
-                #print("C   = " + str(gate.C))
-                #print("F1  = " + str(F2(wires[l], gate.output, signal[l], signal[r])) + " with " + str([signal[l], signal[r]]))
-                #print("F2  = " + str(F2(wires[r], gate.output, signal[l], signal[r])) + " with " + str([signal[l], signal[r]]))
-                #print("F12  = " + str(F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])))
-                #print("")
+                dprint("> AND " + str(i))
+                dprint("sig = " + str(signal[gate.output]))
+                dprint("val = " + str(wires[gate.output]))
+                dprint("T   = " + str(T))
+                dprint("C   = " + str(gate.C))
+                dprint("F1  = " + str(F2(wires[l], gate.output, signal[l], signal[r])) + " with " + str([signal[l], signal[r]]))
+                dprint("F2  = " + str(F2(wires[r], gate.output, signal[l], signal[r])) + " with " + str([signal[l], signal[r]]))
+                dprint("F12  = " + str(F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])))
+                dprint("")
 
             # XOR Gate
             elif gate.operation == Operation.XOR:
@@ -199,7 +202,7 @@ class GarbledCircuit:
                 KF = F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])
                 k, m = [KF[:SIZE], KF[SIZE]]
 
-                signals = 2 * signal[r] + signal[r]
+                signals = 2 * signal[l] + signal[r]
 
                 if signals == 0:
                     wires[gate.output] = k
@@ -210,6 +213,19 @@ class GarbledCircuit:
                 else:
                     wires[gate.output] = k ^ gate.C[0] ^ gate.C[1]
                 signal[gate.output] = m ^ gate.t[signals]
+
+                dprint("> AND " + str(i))
+                dprint("F1  = " + str(F2(wires[l], gate.output, signal[l], signal[r])))
+                dprint("F2  = " + str(F2(wires[r], gate.output, signal[l], signal[r])))
+                dprint("KF  = " + str(KF))
+                dprint("k   = " + str(k))
+                dprint("m   = " + str(m))
+                dprint("sigs= " + str(signals))
+                dprint("sig = " + str(signal[gate.output]))
+                dprint("val = " + str(wires[gate.output]))
+                dprint("C   = " + str(gate.C))
+                dprint("t   = " + str(gate.t))
+                dprint("")
             # Improved XOR Gate
             elif gate.operation == Operation.XORImproved:
                 if signal[r] == 0:
@@ -225,17 +241,14 @@ class GarbledCircuit:
 
         # Run outputs through F
         for i in range(self.num_wires - self.num_out_wires, self.num_wires):
-            #print("> Output " + str(i))
-            #print("sig = " + str(signal[i]))
-            #print("val = " + str(wires[i]))
+            dprint("> Output " + str(i))
+            dprint("sig = " + str(signal[i]))
+            dprint("val = " + str(wires[i]))
 
             wires[i] = F(wires[i], i, signal[i])
 
-            #print("val' = " + str(wires[i]))
-            #print("")
-
-            global actual_bit
-            actual_bit = signal[i]
+            dprint("val' = " + str(wires[i]))
+            dprint("")
 
         for i, wire in enumerate(wires):
             if len(wire) == 0:
@@ -291,11 +304,11 @@ def garble(c: Circuit) -> GarbledCircuit:
         e1.append(1 ^ perm)
         gc.e.append((e0, e1))
 
-        #print("> Input " + str(i))
-        #print("pi = " + str(perm))
-        #print("k  = " + str(K[i]))
-        #print("e  = " + str([e0, e1]) + " with " + str([perm, 1 ^ perm]))
-        #print("")
+        dprint("> Input " + str(i))
+        dprint("pi = " + str(perm))
+        dprint("k  = " + str(K[i]))
+        dprint("e  = " + str([e0, e1]) + " with " + str([perm, 1 ^ perm]))
+        dprint("")
 
     gc.gates = []
     # Iterate over all gates
@@ -334,32 +347,31 @@ def garble(c: Circuit) -> GarbledCircuit:
             permutation[gate.output] = perm
             garbled.C = [T1, T2, T3]
 
-            #print("> AND " + str(gate.output))
-            #print("pi = " + str(perm))
-            #print("k  = " + str(K[gate.output]))
-            #print("C  = " + str(garbled.C))
-            #print("K0")
-            #print("> " + str(F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0)))
-            #print("> " + str(F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)))
-            #print(">> " + str(K0))
-            #print("k1")
-            #print("> " + str(F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ))
-            #print("> " + str(F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)))
-            #print(">> " + str(k1))
-            #print("T1")
-            #print("> " + str(F2(K[gate.left][permutation[gate.left]], gate.output, 0, 1)))
-            #print("> " + str(F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 0, 1)))
-            #print("> " + str(k[permutation[gate.left] & (1 ^ permutation[gate.right])]))
-            #print("T2")
-            #print("> " + str(F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 0)))
-            #print("> " + str(F2(K[gate.right][permutation[gate.right]], gate.output, 1, 0)))
-            #print("> " + str(k[(1 ^ permutation[gate.left]) & permutation[gate.right]]))
-            #print("T3")
-            #print("> " + str(F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 1)))
-            #print("> " + str(F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 1, 1)))
-            #print("> " + str(k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]))
-            #print("")
-
+            dprint("> AND " + str(gate.output))
+            dprint("pi = " + str(perm))
+            dprint("k  = " + str(K[gate.output]))
+            dprint("C  = " + str(garbled.C))
+            dprint("K0")
+            dprint("> " + str(F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0)))
+            dprint("> " + str(F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)))
+            dprint(">> " + str(K0))
+            dprint("k1")
+            dprint("> " + str(F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ))
+            dprint("> " + str(F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)))
+            dprint(">> " + str(k1))
+            dprint("T1")
+            dprint("> " + str(F2(K[gate.left][permutation[gate.left]], gate.output, 0, 1)))
+            dprint("> " + str(F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 0, 1)))
+            dprint("> " + str(k[permutation[gate.left] & (1 ^ permutation[gate.right])]))
+            dprint("T2")
+            dprint("> " + str(F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 0)))
+            dprint("> " + str(F2(K[gate.right][permutation[gate.right]], gate.output, 1, 0)))
+            dprint("> " + str(k[(1 ^ permutation[gate.left]) & permutation[gate.right]]))
+            dprint("T3")
+            dprint("> " + str(F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 1)))
+            dprint("> " + str(F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 1, 1)))
+            dprint("> " + str(k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]))
+            dprint("")
         # XOR Gate
         elif gate.operation == Operation.XOR:
             # 1. Compute permutation bit
@@ -400,9 +412,9 @@ def garble(c: Circuit) -> GarbledCircuit:
             r = gate.right
 
             # 1. Compute keys
-            K0F = F2(K[l][0 ^ permutation[l]], gate.output, 0, 0) ^ F2(K[r][0 ^ permutation[r]], gate.output, 0, 0)
-            K1F = F2(K[l][0 ^ permutation[l]], gate.output, 0, 1) ^ F2(K[r][1 ^ permutation[r]], gate.output, 0, 1)
-            K2F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 0) ^ F2(K[r][0 ^ permutation[r]], gate.output, 1, 0)
+            K0F = F2(K[l][    permutation[l]], gate.output, 0, 0) ^ F2(K[r][    permutation[r]], gate.output, 0, 0)
+            K1F = F2(K[l][    permutation[l]], gate.output, 0, 1) ^ F2(K[r][1 ^ permutation[r]], gate.output, 0, 1)
+            K2F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 0) ^ F2(K[r][    permutation[r]], gate.output, 1, 0)
             K3F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 1) ^ F2(K[r][1 ^ permutation[r]], gate.output, 1, 1)
             K0, m0 = [K0F[:SIZE], K0F[SIZE]]
             K1, m1 = [K1F[:SIZE], K1F[SIZE]]
@@ -450,6 +462,17 @@ def garble(c: Circuit) -> GarbledCircuit:
             K[gate.output] = [k0, k1]
             garbled.C = [T1, T2]
             garbled.t = t
+
+            dprint("> AND " + str(gate.output))
+            dprint("K0 = " + str(K0))
+            dprint("K1 = " + str(K1))
+            dprint("K2 = " + str(K2))
+            dprint("K3 = " + str(K3))
+            dprint("pi = " + str(perm))
+            dprint("k  = " + str(K[gate.output]))
+            dprint("C  = " + str(garbled.C))
+            dprint("t  = " + str(garbled.t))
+            dprint("")
         # Improved XOR Gate
         elif gate.operation == Operation.XORImproved:
             # 1. Compute permutation bit
@@ -490,17 +513,15 @@ def garble(c: Circuit) -> GarbledCircuit:
         k0, k1 = K[i]
         d0 = F(k0, i, perm)
         d1 = F(k1, i, 1 ^ perm)
+        # TODO: This is what the paper specifies, but it is probably not correct!
         #d0 = F(K[i][perm], i, perm)
         #d1 = F(K[i][1 ^ perm], i, perm)
         gc.d.append((d0, d1))
 
-        #print("> Output " + str(i))
-        #print("pi = " + str(perm))
-        #print("k  = " + str(K[i]))
-        #print("d  = " + str([d0, d1]) + " with " + str([perm, 1 ^ perm]))
-        #print("")
-
-        global expected_bit
-        expected_bit = 1 ^ perm
+        dprint("> Output " + str(i))
+        dprint("pi = " + str(perm))
+        dprint("k  = " + str(K[i]))
+        dprint("d  = " + str([d0, d1]) + " with " + str([perm, 1 ^ perm]))
+        dprint("")
 
     return gc

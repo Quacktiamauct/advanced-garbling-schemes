@@ -46,6 +46,10 @@ class Gate:
             return args[0] ^ args[1]
         elif self.operation == Operation.OR:
             return args[0] | args[1]
+        elif self.operation == Operation.ANDImproved:
+            return args[0] & args[1]
+        elif self.operation == Operation.XORImproved:
+            return args[0] ^ args[1]
         else:
             raise Exception("Invalid operation")
 
