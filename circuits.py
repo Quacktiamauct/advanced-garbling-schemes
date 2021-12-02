@@ -136,7 +136,7 @@ class Circuit:
             operation = tmp[-1]
             left = input_wires[0]
             if len(input_wires) == 1:
-                right = -1
+                right = left
             else:
                 right = input_wires[1]
             gates.append(Gate(op_dict[operation], left, right, output_wires[0]))

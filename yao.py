@@ -25,7 +25,7 @@ def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
     ia = int2ba(i, SIZE, endian="little")
     food = A + B + ia
     hash = hashlib.sha256(food.tobytes()).digest()
-    arr = bitarray()
+    arr = bitarray(endian='little')
     arr.frombytes(hash)
     return arr[SIZE:], arr[:SIZE]
 
@@ -35,7 +35,7 @@ def pick_random_pair():
     returns a random pair of bitarrays of size SIZE
     """
     rnd = secrets.token_bytes(32)
-    arr = bitarray()
+    arr = bitarray(endian='little')
     arr.frombytes(rnd)
     return arr[:SIZE], arr[SIZE:]
 
@@ -45,14 +45,12 @@ class GarbledGate:
     left: int
     right: int
     output: int
-    unary: bool
 
     def __init__(self, gate: Gate):
         self.left = gate.left
         self.right = gate.right
         self.output = gate.output
         self.C = [(make_bitarray(MAGIC), make_bitarray(MAGIC))] * 4
-        self.unary = gate.operation == Operation.INV
 
     def permute(self):
         permute = secrets.choice(list(itertools.permutations([0, 1, 2, 3])))
@@ -158,23 +156,24 @@ def garble(c: Circuit) -> GarbledCircuit:
         gg = GarbledGate(gate)
         for j, (leftValue, rightValue) in enumerate([[0, 0], [0, 1], [1, 0], [1, 1]]):
             gateValue = gate.op(leftValue, rightValue)
-            gL, gR = G(K[gg.left][leftValue], K[gg.right][rightValue], gg.output)
             garbledValue = K[gg.output][gateValue]
+            gL, gR = G(K[gg.left][leftValue], K[gg.right][rightValue], gg.output)
             gg.C[j] = gL ^ garbledValue, gR
-        # do the permutations
         gg.permute()
+
+        # do the permutations
         gc.gates.append(gg)
     return gc
 
 
 if __name__ == "__main__":
-    f = open("./bristol/adder64.txt")
+    f = open("./bristol/sub64.txt")
     c = Circuit(f.read())
-    a = int2ba(5, 64, "little")
-    b = int2ba(7, 64, "little")
+    a = int2ba(7, 64, "little")
+    b = int2ba(5, 64, "little")
     gc = garble(c)
     res = gc.eval(a, b)
-    print(f"{ba2int(a)} + {ba2int(b)} = {ba2int(res)}")
+    print(f"{ba2int(a)} - {ba2int(b)} = {ba2int(res)}")
     f = open("./bristol/mult64.txt")
     c = Circuit(f.read())
     a = int2ba(5, 64, "little")
