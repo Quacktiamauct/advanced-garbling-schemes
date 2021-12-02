@@ -10,6 +10,8 @@ class Operation(Enum):
     AND = (1,)
     XOR = (2,)
     OR = (3,)
+    ANDImproved = (4,)
+    XORImproved = (5,)
 
     def __str__(self):
         return self.name

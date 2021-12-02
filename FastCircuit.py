@@ -130,13 +130,8 @@ class GarbledGate(CircuitGate):
             ki0 = F(self.Left.K[0], make_bitarray_with(self.Index, self.Left.Permutation))[:SIZE]
             ki1 = F(self.Left.K[1], make_bitarray_with(self.Index, 1 ^ self.Left.Permutation))[:SIZE]
 
-            print(str(self.Index) + "] ki0 -- " + str(ki0))
-            print(str(self.Index) + "] ki1 -- " + str(ki1))
-
             # 3. New offset
             delta = ki0 ^ ki1
-
-            print(str(self.Index) + "] d   -- " + str(delta))
 
             # 4. Translated keys for j (right)
             if self.Right.Permutation == 0:
@@ -148,9 +143,6 @@ class GarbledGate(CircuitGate):
                 kj0 = kj1 ^ delta
                 T = F(self.Right.K[0], make_bitarray_with(self.Index, 1))[:SIZE] ^ kj0
 
-            print(str(self.Index) + "] kj0 -- " + str(kj0))
-            print(str(self.Index) + "] kj1 -- " + str(kj1))
-
             # 5. Compute keys for output wire l
             k0 = ki0 ^ kj0
             k1 = k0 ^ delta
@@ -159,11 +151,6 @@ class GarbledGate(CircuitGate):
             self.K = [k0, k1]
             self.Permutation = permutation
             self.TXor = T
-
-            print(str(self.Index) + "] pi  -- " + str(self.Permutation))
-            print(str(self.Index) + "] k0  -- " + str(self.K[0]))
-            print(str(self.Index) + "] k1  -- " + str(self.K[1]))
-            print(str(self.Index) + "] T   -- " + str(self.TXor))
 
         # AND Gates
         elif self.Op == GateType.AND:
@@ -307,13 +294,8 @@ class GarbledGate(CircuitGate):
             else:
                 k = vLeft ^ vRight
 
-            print(str(self.Index) + "] vL  -- " + str(vLeft))
-            print(str(self.Index) + "] vR  -- " + str(vRight))
-            print(str(self.Index) + "] k   -- " + str(k))
-
             self.Output = k
             self.Signal = self.Left.Signal ^ self.Right.Signal
-
             print(str(self.Index) + "] sig -- " + str(self.Signal))
         # AND Gates:
         elif self.Op == GateType.AND:
