@@ -181,7 +181,6 @@ class GarbledCircuit:
                 dprint("F2  = " + str(F2(wires[r], gate.output, signal[l], signal[r])) + " with " + str([signal[l], signal[r]]))
                 dprint("F12  = " + str(F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])))
                 dprint("")
-
             # XOR Gate
             elif gate.operation == Operation.XOR:
                 vLeft = F(wires[l], gate.output, signal[l])[:SIZE]
@@ -233,11 +232,24 @@ class GarbledCircuit:
                     k = F(wires[l], gate.output, signal[l])[:SIZE] ^ wires[r]
                 else:
                     vLeft = F(wires[l], gate.output, signal[l])[:SIZE]
-                    vRight = F(wires[r], gate.output, 0)[:SIZE]
+                    vRight = F(wires[r], gate.output, 1)[:SIZE]
                     k = vLeft ^ vRight ^ gate.C[0]
 
                 wires[gate.output] = k
                 signal[gate.output] = signal[l] ^ signal[r]
+
+                dprint("> XOR " + str(i))
+                dprint("rhs = " + str(wires[r]))
+                dprint("F1  = " + str(F(wires[l], gate.output, signal[l])[:SIZE]))
+                if signal[r] != 0:
+                    dprint("vl  = " + str(vLeft))
+                    dprint("vr  = " + str(vRight))
+                dprint("k   = " + str(k))
+                dprint("C   = " + str(gate.C))
+                dprint("sig = " + str(signal[gate.output]))
+                dprint("val = " + str(wires[gate.output]))
+
+                dprint("")
 
         # Run outputs through F
         for i in range(self.num_wires - self.num_out_wires, self.num_wires):
@@ -404,7 +416,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             garbled.C = [T]
         # NOT Gate
         elif gate.operation == Operation.INV:
-            permutation.append(permutation[gate.left])
+            permutation[gate.output] = permutation[gate.left]
             K[gate.output] = [K[gate.left][1], K[gate.left][0]]
         # Improved AND Gate
         elif gate.operation == Operation.ANDImproved:
@@ -503,6 +515,17 @@ def garble(c: Circuit) -> GarbledCircuit:
             K[gate.output] = [k0, k1]
             permutation[gate.output] = perm
             garbled.C = [T]
+
+            dprint("> XOR " + str(gate.output))
+            dprint("ki0   = " + str(ki0))
+            dprint("ki1   = " + str(ki1))
+            dprint("delta = " + str(delta))
+            dprint("kj0   = " + str(kj0))
+            dprint("kj1   = " + str(kj1))
+            dprint("pi    = " + str(perm))
+            dprint("k     = " + str(K[gate.output]))
+            dprint("C     = " + str(garbled.C))
+            dprint("")
 
         gc.gates.append(garbled)
 

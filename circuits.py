@@ -18,6 +18,8 @@ class Operation(Enum):
 
 
 op_dict = {
+    #"AND": Operation.ANDImproved,
+    #"XOR": Operation.XORImproved,
     "AND": Operation.AND,
     "XOR": Operation.XOR,
     "INV": Operation.INV,
