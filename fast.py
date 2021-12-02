@@ -31,19 +31,6 @@ def make_bitarray_with_2(i: int, a: int, b: int):
     return r
 
 
-def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
-    """
-    input: A and B are bitarrays of size SIZE
-    returns a 2*SIZE bitarray
-    """
-    ia = int2ba(i, SIZE, endian="little")
-    food = A + B + ia
-    hash = hashlib.sha256(food.tobytes()).digest()
-    arr = bitarray()
-    arr.frombytes(hash)
-    return arr[SIZE:], arr[:SIZE]
-
-
 def make_bitarray(i: int):
     return int2ba(i, SIZE, endian='little')
 
@@ -265,7 +252,6 @@ def garble(c: Circuit) -> GarbledCircuit:
             kl1.append(1 ^ perm)
             k = [kl0, kl1]
             
-
             # 3. Compute gate ciphertexts
             T1 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 1) ^ \
                  F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 0, 1) ^ \
@@ -417,31 +403,31 @@ def garble(c: Circuit) -> GarbledCircuit:
 
 
 if __name__ == "__main__":
-    f = open("./bristol/test2.txt")
-    c = Circuit(f.read())
-    res = c.eval(bitarray([0,0], endian='little'))
-    print("sanity test", res)
-    gc = garble(c)
-    res = gc.eval(bitarray([0,0], endian='little'))
-    print(res)
-    res = gc.eval(bitarray([0,1], endian='little'))
-    print(res)
-    res = gc.eval(bitarray([1,0], endian='little'))
-    print(res)
-    res = gc.eval(bitarray([1,1], endian='little'))
-    print(res)
+    # f = open("./bristol/test2.txt")
+    # c = Circuit(f.read())
+    # res = c.eval(bitarray([0,0], endian='little'))
+    # print("sanity test", res)
+    # gc = garble(c)
+    # res = gc.eval(bitarray([0,0], endian='little'))
+    # print(res)
+    # res = gc.eval(bitarray([0,1], endian='little'))
+    # print(res)
+    # res = gc.eval(bitarray([1,0], endian='little'))
+    # print(res)
+    # res = gc.eval(bitarray([1,1], endian='little'))
+    # print(res)
 
-    # f = open("./bristol/adder64.txt")
-    # c = Circuit(f.read())
-    # a = int2ba(7, 64, "little")
-    # b = int2ba(5, 64, "little")
-    # gc = garble(c)
-    # res = gc.eval(a, b)
-    # print(f"{ba2int(a)} - {ba2int(b)} = {ba2int(res)}")
-    # f = open("./bristol/mult64.txt")
-    # c = Circuit(f.read())
-    # a = int2ba(5, 64, "little")
-    # b = int2ba(3, 64, "little")
-    # gc = garble(c)
-    # res = gc.eval(a, b)
-    # print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
+    f = open("./bristol/mult64.txt")
+    c = Circuit(f.read())
+    a = int2ba(7, 64, "little")
+    b = int2ba(5, 64, "little")
+    gc = garble(c)
+    res = gc.eval(a, b)
+    print(f"{ba2int(a)} + {ba2int(b)} = {ba2int(res)}")
+    f = open("./bristol/mult64.txt")
+    c = Circuit(f.read())
+    a = int2ba(5, 64, "little")
+    b = int2ba(3, 64, "little")
+    gc = garble(c)
+    res = gc.eval(a, b)
+    print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
