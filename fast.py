@@ -53,7 +53,7 @@ def F(left: bitarray, index: int, perm: int) -> bitarray:
     right.append(perm)
 
     food = left + right
-    arr = bitarray()
+    arr = bitarray(endian='little')
     arr.frombytes(hashlib.sha256(food.tobytes()).digest())
 
     return arr[:EXTENDED_SIZE]
@@ -64,7 +64,7 @@ def F2(left: bitarray, index: int, permLeft: int, permRight: int) -> bitarray:
     right.append(permRight)
 
     food = left + right
-    arr = bitarray()
+    arr = bitarray(endian="little")
     arr.frombytes(hashlib.sha256(food.tobytes()).digest())
 
     return arr[:EXTENDED_SIZE]
@@ -75,7 +75,7 @@ def pick_random_pair():
     returns a random pair of bitarrays of size SIZE
     """
     rnd = secrets.token_bytes(32)
-    arr = bitarray()
+    arr = bitarray(endian='little')
     arr.frombytes(rnd)
     return arr[:SIZE], arr[SIZE:]
 
@@ -86,6 +86,7 @@ class GarbledGate:
     right: int
     output: int
     t: List
+    operation: Operation
 
     def __init__(self, gate: Gate):
         self.left = gate.left
@@ -93,6 +94,7 @@ class GarbledGate:
         self.output = gate.output
         self.C = []
         self.t = None
+        self.operation = gate.operation
 
     def permute(self):
         permute = secrets.choice(list(itertools.permutations([0, 1, 2, 3])))
@@ -166,6 +168,7 @@ class GarbledCircuit:
                     k = vLeft ^ vRight
 
                 signal[gate.output] = signal[l] ^ signal[r]
+                wires[gate.output] = k
             # NOT Gate
             elif gate.operation == Operation.INV:
                 signal[gate.output] = 1 ^ signal[l]
@@ -177,10 +180,14 @@ class GarbledCircuit:
             elif gate.operation == Operation.XORImproved:
                 pass
 
-        for wire in wires:
+        # Run outputs through F
+        for i in range(c.num_wires - c.num_out_wires, c.num_wires):
+            wires[i] = F(wires[i], i, signal[i])
+
+        for i, wire in enumerate(wires):
             if len(wire) == 0:
                 print("num of wires:", len(wires))
-                raise Exception("Error: wire is empty. All wires has to be evaluated")
+                raise Exception(f"Error: wire {i} is empty. All wires have to be evaluated")
 
         return wires[-sum(self.output_sizes) :]
 
@@ -199,6 +206,9 @@ class GarbledCircuit:
             elif z == Z1:
                 x[i] = 1
             else:
+                print(Z0)
+                print(Z1)
+                print(z)
                 raise Exception("Error at decode, no valid Z")
         return bitarray(x, endian="little")
 
@@ -210,17 +220,17 @@ def garble(c: Circuit) -> GarbledCircuit:
     gc = GarbledCircuit(c)
 
     # 1. Setup input wires
-    K = []
-    permutation = []
+    K = [[]] * c.num_wires
+    permutation = [-1] * c.num_wires
     gc.e = []
     for i in range(c.num_in_wires):
         # a) choose random keys
         k0, k1 = pick_random_pair()
-        K.append((k0, k1))
+        K[i] = k0, k1
 
         # b) choose permutation bit
         perm = secrets.randbits(1)
-        permutation.append(perm)
+        permutation[i] = perm
 
         # c) Prepare encoding information
         e0 = k0.copy()
@@ -231,14 +241,13 @@ def garble(c: Circuit) -> GarbledCircuit:
     
     gc.gates = []
     # Iterate over all gates
-    table = {}
     for gate in c.gates:
         garbled = GarbledGate(gate)
         # AND Gate
         if gate.operation == Operation.AND:
             # 1. Compute K0
-            print(len(K), len(K[0]), len(permutation), gate.left, gate.right)
             K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ^ F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)
+            #K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0)
 
             # 2. Set output wires and permutaion bit
             if permutation[gate.left] == permutation[gate.right] and permutation[gate.left] == 1:
@@ -269,8 +278,8 @@ def garble(c: Circuit) -> GarbledCircuit:
                  k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]
 
             # 4. Set the values
-            K.append(k)
-            permutation.append(perm)
+            K[gate.output] = [k0, k1]
+            permutation[gate.output] = perm
             garbled.C = [T1, T2, T3]
         # XOR Gate
         elif gate.operation == Operation.XOR:
@@ -299,13 +308,13 @@ def garble(c: Circuit) -> GarbledCircuit:
             k1 = k0 ^ delta
 
             # 6. Set values
-            K.append([k0, k1])
-            permutation.append(perm)
+            K[gate.output] = [k0, k1]
+            permutation[gate.output] = perm
             garbled.C = [T]
         # NOT Gate
         elif gate.operation == Operation.INV:
             permutation.append(permutation[gate.left])
-            K.append([K[gate.left][1], K[gate.left][0]])
+            K[gate.output] = [K[gate.left][1], K[gate.left][0]]
         # Improved AND Gate
         elif gate.operation == Operation.ANDImproved:
             l = gate.left
@@ -358,8 +367,8 @@ def garble(c: Circuit) -> GarbledCircuit:
                 t[0] = m0 ^ (1 ^ permutation)
 
             # 6. Set values
-            permutation.append(perm)
-            K.append([k0, k1])
+            permutation[gate.output] = perm
+            K[gate.output] = [k0, k1]
             garbled.C = [T1, T2]
             garbled.t = t
         # Improved XOR Gate
@@ -389,35 +398,50 @@ def garble(c: Circuit) -> GarbledCircuit:
             k1 = k0 ^ delta
 
             # 6. Set values
-            K.append([k0, k1])
-            permutation.append(perm)
+            K[gate.output] = [k0, k1]
+            permutation[gate.output] = perm
             garbled.C = [T]
+        
+        gc.gates.append(garbled)
 
     # 3. Prepare decoding information
     gc.d = []
-    for i in range(c.num_wires - c.num_out_wires, c.num_out_wires):
-        gate = table[i]
+    for i in range(c.num_wires - c.num_out_wires, c.num_wires):
         perm = permutation[i]
-        k0, k1 = K[gate]
-        d0 = F(k0, gate, perm)
-        d1 = F(k1, gate, 1 ^ perm)
+        k0, k1 = K[i]
+        d0 = F(k0, i, perm)
+        d1 = F(k1, i, 1 ^ perm)
         gc.d.append((d0, d1))
 
     return gc
 
 
 if __name__ == "__main__":
-    f = open("./bristol/adder64.txt")
+    f = open("./bristol/test2.txt")
     c = Circuit(f.read())
-    a = int2ba(7, 64, "little")
-    b = int2ba(5, 64, "little")
+    res = c.eval(bitarray([0,0], endian='little'))
+    print("sanity test", res)
     gc = garble(c)
-    res = gc.eval(a, b)
-    print(f"{ba2int(a)} - {ba2int(b)} = {ba2int(res)}")
-    f = open("./bristol/mult64.txt")
-    c = Circuit(f.read())
-    a = int2ba(5, 64, "little")
-    b = int2ba(3, 64, "little")
-    gc = garble(c)
-    res = gc.eval(a, b)
-    print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
+    res = gc.eval(bitarray([0,0], endian='little'))
+    print(res)
+    res = gc.eval(bitarray([0,1], endian='little'))
+    print(res)
+    res = gc.eval(bitarray([1,0], endian='little'))
+    print(res)
+    res = gc.eval(bitarray([1,1], endian='little'))
+    print(res)
+
+    # f = open("./bristol/adder64.txt")
+    # c = Circuit(f.read())
+    # a = int2ba(7, 64, "little")
+    # b = int2ba(5, 64, "little")
+    # gc = garble(c)
+    # res = gc.eval(a, b)
+    # print(f"{ba2int(a)} - {ba2int(b)} = {ba2int(res)}")
+    # f = open("./bristol/mult64.txt")
+    # c = Circuit(f.read())
+    # a = int2ba(5, 64, "little")
+    # b = int2ba(3, 64, "little")
+    # gc = garble(c)
+    # res = gc.eval(a, b)
+    # print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
