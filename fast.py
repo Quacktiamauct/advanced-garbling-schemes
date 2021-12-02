@@ -281,8 +281,7 @@ def garble(c: Circuit) -> GarbledCircuit:
         K[i] = k0, k1
 
         # b) choose permutation bit
-        # perm = secrets.randbits(1)
-        perm = 1
+        perm = secrets.randbits(1)
         permutation[i] = perm
 
         # c) Prepare encoding information
