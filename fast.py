@@ -169,13 +169,35 @@ class GarbledCircuit:
                 wires[gate.output] = wires[l]
             # Improved AND Gate
             elif gate.operation == Operation.ANDImproved:
-                pass
+                KF = F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])
+                k, m = [KF[:SIZE], KF[SIZE]]
+
+                signals = 2 * signal[r] + signal[r]
+
+                if signals == 0:
+                    wires[gate.output] = k
+                elif signals == 1:
+                    wires[gate.output] = k ^ gate.C[0]
+                elif signals == 2:
+                    wires[gate.output] = k ^ gate.C[1]
+                else:
+                    wires[gate.output] = k ^ gate.C[0] ^ gate.C[1]
+                signal[gate.output] = m ^ gate.t[signals]
             # Improved XOR Gate
             elif gate.operation == Operation.XORImproved:
-                pass
+                if signal[r] == 0:
+                    # Note that since we know the signal is 0 we do not need to XOR with TXor
+                    k = F(wires[l], gate.output, signal[l])[:SIZE] ^ wires[r]
+                else:
+                    vLeft = F(wires[l], gate.output, signal[l])[:SIZE]
+                    vRight = F(wires[r], gate.output, 0)[:SIZE]
+                    k = vLeft ^ vRight ^ gate.C[0]
+
+                wires[gate.output] = k
+                signal[gate.output] = signal[l] ^ signal[r]
 
         # Run outputs through F
-        for i in range(c.num_wires - c.num_out_wires, c.num_wires):
+        for i in range(self.num_wires - self.num_out_wires, self.num_wires):
             wires[i] = F(wires[i], i, signal[i])
 
         for i, wire in enumerate(wires):
@@ -202,9 +224,6 @@ class GarbledCircuit:
             elif z == Z1:
                 x[i] = 1
             else:
-                print(Z0)
-                print(Z1)
-                print(z)
                 raise Exception("Error at decode, no valid Z")
         return bitarray(x, endian="little")
 
@@ -242,19 +261,18 @@ def garble(c: Circuit) -> GarbledCircuit:
         # AND Gate
         if gate.operation == Operation.AND:
             # 1. Compute K0
-            K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ^ F2(
-                K[gate.right][permutation[gate.right]], gate.output, 0, 0
-            )
-            # K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0)
+            K0 = F2(K[gate.left][permutation[gate.left]], gate.output, 0, 0) ^ F2(K[gate.right][permutation[gate.right]], gate.output, 0, 0)
 
             # 2. Set output wires and permutaion bit
-            if (
-                permutation[gate.left] == permutation[gate.right]
-                and permutation[gate.left] == 1
-            ):
+            if permutation[gate.left] == permutation[gate.right] and permutation[gate.left] == 1:
+                # TODO: this doesn't work
                 k0, _ = pick_random_pair()
                 perm = secrets.randbits(1)
                 k1 = K0[:SIZE]
+                # det må være her
+                # Ellers så er det eval der er noget galt med hvor det ikke cancler ordentligt?
+                # jeg afleverer lige COQ for denne i mens jeg lige husker det.
+                # vi mangler dog stadig at rette forrige uge.
             else:
                 k0 = K0[:SIZE]
                 perm = K0[SIZE]
@@ -278,9 +296,7 @@ def garble(c: Circuit) -> GarbledCircuit:
                 ^ k[(1 ^ permutation[gate.left]) & permutation[gate.right]]
             )
             T3 = (
-                F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 1)
-                ^ F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 1, 1)
-                ^ k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]
+                F2(K[gate.left][1 ^ permutation[gate.left]], gate.output, 1, 1) ^ F2(K[gate.right][1 ^ permutation[gate.right]], gate.output, 1, 1) ^ k[(1 ^ permutation[gate.left]) & (1 ^ permutation[gate.right])]
             )
 
             # 4. Set the values
@@ -327,18 +343,10 @@ def garble(c: Circuit) -> GarbledCircuit:
             r = gate.right
 
             # 1. Compute keys
-            K0F = F2(K[l][permutation[l]], gate.output, 0, 0) ^ F2(
-                K[r][permutation[r]], 0, 0
-            )
-            K1F = F2(K[l][permutation[l]], gate.output, 0, 1) ^ F2(
-                K[r][1 ^ permutation[r]], 0, 1
-            )
-            K2F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 0) ^ F2(
-                K[r][permutation[r]], 1, 0
-            )
-            K3F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 1) ^ F2(
-                K[r][1 ^ permutation[r]], 1, 1
-            )
+            K0F = F2(K[l][0 ^ permutation[l]], gate.output, 0, 0) ^ F2(K[r][0 ^ permutation[r]], gate.output, 0, 0)
+            K1F = F2(K[l][0 ^ permutation[l]], gate.output, 0, 1) ^ F2(K[r][1 ^ permutation[r]], gate.output, 0, 1)
+            K2F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 0) ^ F2(K[r][0 ^ permutation[r]], gate.output, 1, 0)
+            K3F = F2(K[l][1 ^ permutation[l]], gate.output, 1, 1) ^ F2(K[r][1 ^ permutation[r]], gate.output, 1, 1)
             K0, m0 = [K0F[:SIZE], K0F[SIZE]]
             K1, m1 = [K1F[:SIZE], K1F[SIZE]]
             K2, m2 = [K2F[:SIZE], K2F[SIZE]]
@@ -358,27 +366,27 @@ def garble(c: Circuit) -> GarbledCircuit:
 
             # 4/5. Compute table and additional bits
             t = [
-                m0 ^ permutation,
-                m1 ^ permutation,
-                m2 ^ permutation,
-                m3 ^ permutation,
+                m0 ^ perm,
+                m1 ^ perm,
+                m2 ^ perm,
+                m3 ^ perm,
             ]
             if s == 3:
                 T1 = K0 ^ K1
                 T2 = K0 ^ K2
-                t[3] = m3 ^ (1 ^ permutation)
+                t[3] = m3 ^ (1 ^ perm)
             elif s == 2:
                 T1 = K0 ^ K1
                 T2 = K1 ^ K3
-                t[2] = m2 ^ (1 ^ permutation)
+                t[2] = m2 ^ (1 ^ perm)
             elif s == 1:
                 T1 = K2 ^ K3
                 T2 = K0 ^ K2
-                t[1] = m1 ^ (1 ^ permutation)
+                t[1] = m1 ^ (1 ^ perm)
             else:
                 T1 = K2 ^ K3
                 T2 = K1 ^ K3
-                t[0] = m0 ^ (1 ^ permutation)
+                t[0] = m0 ^ (1 ^ perm)
 
             # 6. Set values
             permutation[gate.output] = perm
@@ -391,7 +399,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             perm = permutation[gate.left] ^ permutation[gate.right]
 
             # 2. Translate keys for LHS
-            ki0 = F(K[gate.left][0], gate.output, permutation[gate.left])[:SIZE]
+            ki0 = F(K[gate.left][0], gate.output,     permutation[gate.left])[:SIZE]
             ki1 = F(K[gate.left][1], gate.output, 1 ^ permutation[gate.left])[:SIZE]
 
             # 3. New offset
@@ -425,37 +433,8 @@ def garble(c: Circuit) -> GarbledCircuit:
         k0, k1 = K[i]
         d0 = F(k0, i, perm)
         d1 = F(k1, i, 1 ^ perm)
+        #d0 = F(K[i][perm], i, perm)
+        #d1 = F(K[i][1 ^ perm], i, perm)
         gc.d.append((d0, d1))
 
     return gc
-
-
-if __name__ == "__main__":
-    # f = open("./bristol/test2.txt")
-    # c = Circuit(f.read())
-    # res = c.eval(bitarray([0,0], endian='little'))
-    # print("sanity test", res)
-    # gc = garble(c)
-    # res = gc.eval(bitarray([0,0], endian='little'))
-    # print(res)
-    # res = gc.eval(bitarray([0,1], endian='little'))
-    # print(res)
-    # res = gc.eval(bitarray([1,0], endian='little'))
-    # print(res)
-    # res = gc.eval(bitarray([1,1], endian='little'))
-    # print(res)
-
-    f = open("./bristol/mult64.txt")
-    c = Circuit(f.read())
-    a = int2ba(7, 64, "little")
-    b = int2ba(5, 64, "little")
-    gc = garble(c)
-    res = gc.eval(a, b)
-    print(f"{ba2int(a)} + {ba2int(b)} = {ba2int(res)}")
-    f = open("./bristol/mult64.txt")
-    c = Circuit(f.read())
-    a = int2ba(5, 64, "little")
-    b = int2ba(3, 64, "little")
-    gc = garble(c)
-    res = gc.eval(a, b)
-    print(f"{ba2int(a)} * {ba2int(b)} = {ba2int(res)}")
