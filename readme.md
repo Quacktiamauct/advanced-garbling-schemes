@@ -1,5 +1,6 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-Enforce types using [mypy](https://github.com/python/mypy).
+
+Types ae enforced using [mypy](https://github.com/python/mypy).
 
 # Advanced Garbling Schemes
 
