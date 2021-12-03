@@ -106,13 +106,15 @@ class GarbledCircuit:
     num_in_wires: int
     num_out_wires: int
 
-    def __init__(self, circuit: Circuit):
+    def __init__(self, circuit: Circuit, improvedAnd: bool, improvedXor: bool):
         self.num_inputs = circuit.num_inputs
         self.input_sizes = circuit.input_sizes
         self.output_sizes = circuit.output_sizes
         self.num_wires = circuit.num_wires
         self.num_in_wires = sum(self.input_sizes)
         self.num_out_wires = sum(self.output_sizes)
+        self.improvedAnd = improvedAnd
+        self.improvedXor = improvedXor
 
     def eval(self, *args: bitarray):
         """
@@ -140,7 +142,7 @@ class GarbledCircuit:
             r = gate.right
 
             # AND Gate
-            if gate.operation == Operation.AND:
+            if gate.operation == Operation.AND and not self.improvedAnd:
                 if (signal[l] + signal[r]) == 0:
                     key = F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])
                 else:
@@ -150,7 +152,7 @@ class GarbledCircuit:
                 wires[gate.output] = key[:SIZE]
                 signal[gate.output] = key[SIZE]
             # XOR Gate
-            elif gate.operation == Operation.XOR:
+            elif gate.operation == Operation.XOR and not self.improvedXor:
                 vLeft = F(wires[l], gate.output, signal[l])[:SIZE]
                 vRight = F(wires[r], gate.output, signal[r])[:SIZE]
                 if signal[r] == 1:
@@ -165,7 +167,7 @@ class GarbledCircuit:
                 signal[gate.output] = 1 ^ signal[l]
                 wires[gate.output] = wires[l]
             # Improved AND Gate
-            elif gate.operation == Operation.ANDImproved:
+            elif gate.operation == Operation.AND and self.improvedAnd:
                 KF = F2(wires[l], gate.output, signal[l], signal[r]) ^ F2(wires[r], gate.output, signal[l], signal[r])
                 k, m = [KF[:SIZE], KF[SIZE]]
 
@@ -181,7 +183,7 @@ class GarbledCircuit:
                     wires[gate.output] = k ^ gate.C[0] ^ gate.C[1]
                 signal[gate.output] = m ^ gate.t[signals]
             # Improved XOR Gate
-            elif gate.operation == Operation.XORImproved:
+            elif gate.operation == Operation.XOR and self.improvedXor:
                 if signal[r] == 0:
                     k = F(wires[l], gate.output, signal[l])[:SIZE] ^ wires[r]
                 else:
@@ -222,11 +224,11 @@ class GarbledCircuit:
         return bitarray(x, endian="little")
 
 
-def garble(c: Circuit) -> GarbledCircuit:
+def garble(c: Circuit, improvedAnd = True, improvedXor = True) -> GarbledCircuit:
     """
     returns a garbled circuit
     """
-    gc = GarbledCircuit(c)
+    gc = GarbledCircuit(c, improvedAnd, improvedXor)
 
     # 1. Setup input wires
     K = [[]] * c.num_wires
@@ -256,7 +258,7 @@ def garble(c: Circuit) -> GarbledCircuit:
         r = gate.right
 
         # AND Gate
-        if gate.operation == Operation.AND:
+        if gate.operation == Operation.AND and not improvedAnd:
             # 1. Compute K0
             K0 = F2(K[l][permutation[l]], gate.output, 0, 0) ^ F2(K[r][permutation[r]], gate.output, 0, 0)
 
@@ -286,7 +288,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             permutation[gate.output] = perm
             garbled.C = [T1, T2, T3]
         # XOR Gate
-        elif gate.operation == Operation.XOR:
+        elif gate.operation == Operation.XOR and not improvedXor:
             # 1. Compute permutation bit
             perm = permutation[l] ^ permutation[r]
 
@@ -320,7 +322,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             permutation[gate.output] = permutation[l]
             K[gate.output] = [K[l][1], K[l][0]]
         # Improved AND Gate
-        elif gate.operation == Operation.ANDImproved:
+        elif gate.operation == Operation.AND and improvedAnd:
             l = l
             r = r
 
@@ -376,7 +378,7 @@ def garble(c: Circuit) -> GarbledCircuit:
             garbled.C = [T1, T2]
             garbled.t = t
         # Improved XOR Gate
-        elif gate.operation == Operation.XORImproved:
+        elif gate.operation == Operation.XOR and improvedXor:
             # 1. Compute permutation bit
             perm = permutation[l] ^ permutation[r]
 

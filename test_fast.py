@@ -57,42 +57,45 @@ def test_not():
 
 # Arithmetic on unsigned integers
 def test_adder():
-    for _ in range(10):
-        num1 = secrets.randbits(32)
-        num2 = secrets.randbits(32)
-        f = open("./bristol/adder64.txt")
-        c = Circuit(f.read())
-        a = int2ba(num1, 64, "little")
-        b = int2ba(num2, 64, "little")
-        gc = garble(c)
-        res = gc.eval(a, b)
-        assert ba2int(a) + ba2int(b) == ba2int(res)
+    for improvedAnd, improvedXor in [(False, False), (True, False), (False, True), (True, True)]:
+        for _ in range(10):
+            num1 = secrets.randbits(32)
+            num2 = secrets.randbits(32)
+            f = open("./bristol/adder64.txt")
+            c = Circuit(f.read())
+            a = int2ba(num1, 64, "little")
+            b = int2ba(num2, 64, "little")
+            gc = garble(c, improvedAnd, improvedXor)
+            res = gc.eval(a, b)
+            assert ba2int(a) + ba2int(b) == ba2int(res)
 
 def test_mult():
-    for _ in range(10):
-        num1 = secrets.randbits(32)
-        num2 = secrets.randbits(32)
-        f = open("./bristol/mult64.txt")
-        c = Circuit(f.read())
-        a = int2ba(num1, 64, "little")
-        b = int2ba(num2, 64, "little")
-        gc = garble(c)
-        res = gc.eval(a, b)
-        assert ba2int(a) * ba2int(b) == ba2int(res)
+    for improvedAnd, improvedXor in [(False, False), (True, False), (False, True), (True, True)]:
+        for _ in range(10):
+            num1 = secrets.randbits(32)
+            num2 = secrets.randbits(32)
+            f = open("./bristol/mult64.txt")
+            c = Circuit(f.read())
+            a = int2ba(num1, 64, "little")
+            b = int2ba(num2, 64, "little")
+            gc = garble(c, improvedAnd, improvedXor)
+            res = gc.eval(a, b)
+            assert ba2int(a) * ba2int(b) == ba2int(res)
 
 def test_sub():
-    for _ in range(10):
-        num1 = secrets.randbits(32)
-        num2 = secrets.randbits(32)
-        if num2 > num1:
-            tmp = num1
-            num1 = num2
-            num2 = tmp
+    for improvedAnd, improvedXor in [(False, False), (True, False), (False, True), (True, True)]:
+        for _ in range(10):
+            num1 = secrets.randbits(32)
+            num2 = secrets.randbits(32)
+            if num2 > num1:
+                tmp = num1
+                num1 = num2
+                num2 = tmp
 
-        f = open("./bristol/sub64.txt")
-        c = Circuit(f.read())
-        a = int2ba(num1, 64, "little")
-        b = int2ba(num2, 64, "little")
-        gc = garble(c)
-        res = gc.eval(a, b)
-        assert ba2int(a) - ba2int(b) == ba2int(res)
+            f = open("./bristol/sub64.txt")
+            c = Circuit(f.read())
+            a = int2ba(num1, 64, "little")
+            b = int2ba(num2, 64, "little")
+            gc = garble(c, improvedAnd, improvedXor)
+            res = gc.eval(a, b)
+            assert ba2int(a) - ba2int(b) == ba2int(res)
