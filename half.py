@@ -209,7 +209,7 @@ def garble(c: Circuit) -> GarbledCircuit:
     gc.R = R
 
     # Inputs
-    W = [[-1, -1]] * c.num_wires
+    W = [[bitarray(), bitarray()] for _ in range(c.num_wires)]
     for i in range(c.num_in_wires):
         W[i][0] = rnd_bitarray()
         W[i][1] = W[i][0] ^ R
