@@ -97,7 +97,7 @@ class GarbledCircuit:
         X is a list of bitarrays of size SIZE (being an encoded)
         returns a list of bitarrays of size SIZE
         """
-        wires = [bitarray()] * c.num_wires
+        wires = [bitarray()] * self.num_wires
         zero = zeros(SIZE, endian='little')
 
         # Inputs
@@ -115,12 +115,9 @@ class GarbledCircuit:
             # XOR
             if gate.operation is Operation.XOR:
                 wires[i] = wires[a] ^ wires[b]
-
-                print("> XOR " + str(i))
-                print("lhs  = " + str(wires[a]))
-                print("rhs  = " + str(wires[b]))
-                print("val  = " + str(wires[i]))
-                print("")
+            # NOT
+            elif gate.operation == Operation.INV:
+                wires[i] = wires[a]
             # AND
             else:
                 sa = wires[a][LSB_INDEX]
@@ -134,12 +131,6 @@ class GarbledCircuit:
                 we = H(wires[b], jp) ^ (te ^ wires[a] if sb else zero)
 
                 wires[i] = wg ^ we
-                print("> AND " + str(i))
-                print("lhs  = " + str(wires[a]))
-                print("rhs  = " + str(wires[b]))
-                print("val  = " + str(wires[i]))
-                print("")
-
 
         return wires[-self.num_out_wires:]
 
@@ -149,15 +140,6 @@ class GarbledCircuit:
 
         zero = zeros(SIZE, endian='little')
         z = [self.e[i] ^ (self.R if x else zero) for i, x in enumerate(xs)]
-
-        for i, x in enumerate(xs):
-            print("> Input " + str(i))
-            print("x    = " + str(x))
-            print("R    = " + str(self.R))
-            print("e    = " + str(self.e[i]))
-            print("val  = " + str(self.e[i] ^ (self.R if x else zero)))
-            print()
-
         return z
 
     def decode(self, zs: List[bitarray]):
@@ -165,15 +147,6 @@ class GarbledCircuit:
             raise Exception(f"Decoding error: {len(self.d)} != {len(zs)}")
 
         x = [d ^ zs[i][LSB_INDEX] for i, d in enumerate(self.d)]
-
-        for i, d in enumerate(self.d):
-            print("> Output " + str(self.num_wires - i - 1))
-            print("d    = " + str(d))
-            print("z    = " + str(zs[i]))
-            print("z_0  = " + str(zs[i][LSB_INDEX]))
-            print("res  = " + str(d ^ zs[i][LSB_INDEX]))
-            print()
-
         return bitarray(x, endian="little")
 
 
@@ -215,13 +188,6 @@ def garble(c: Circuit) -> GarbledCircuit:
         W[i][1] = W[i][0] ^ R
     gc.e = [w[0] for w in W[: c.num_in_wires]]
 
-    for i in range(c.num_in_wires):
-        print("> Input " + str(i))
-        print("W0  = " + str(W[i][0]))
-        print("W1  = " + str(W[i][1]))
-        print("e   = " + str(gc.e[i]))
-        print()
-
     # Iterate over all gates
     zero = zeros(SIZE, endian='little')
     j = 0
@@ -236,9 +202,9 @@ def garble(c: Circuit) -> GarbledCircuit:
         # XOR
         if gate.operation == Operation.XOR:
             W[i][0] = W[a][0] ^ W[b][0]
-
-            print("> XOR " + str(i))
-            print("W0   = " + str(W[i][0]))
+        # NOT
+        elif gate.operation == Operation.INV:
+            W[i][0] = W[a][1]
         # AND
         else:
             p_a = bitarray(W[a][0][LSB_INDEX])
@@ -259,159 +225,10 @@ def garble(c: Circuit) -> GarbledCircuit:
             W[i][0] = wg ^ we
             garbled.F = tg, te
 
-            print("> AND " + str(i))
-            print("p_a  = " + str(p_a))
-            print("p_b  = " + str(p_b))
-            print("j    = " + str(j))
-            print("jp   = " + str(jp))
-            print("tg   = " + str(tg))
-            print("wg   = " + str(wg))
-            print("te   = " + str(te))
-            print("we   = " + str(we))
-            print("W0   = " + str(W[i][0]))
-
         W[i][1] = W[i][0] ^ R
-        print("W1   = " + str(W[i][1]))
-        print("")
         gc.gates.append(garbled)
 
     # Outputs
     gc.d = bitarray([w[0][LSB_INDEX] for w in W[-c.num_out_wires:]])
 
-    for i in range(c.num_outputs):
-        print("> Ouput " + str(c.num_wires - i - 1))
-        print("d   = " + str(gc.d[i]))
-        print()
-
-    print("---------------------------------------------------------")
     return gc
-
-
-if __name__ == "__main__" and True:
-    f = open("./bristol/test_xor.txt")
-    c = Circuit(f.read())
-    for x in [0, 1]:
-        for y in [0, 1]:
-            for z in [0, 1]:
-                i1 = int2ba(x, 1, "little")
-                i2 = int2ba(y, 1, "little")
-                i3 = int2ba(z, 1, "little")
-                gc = garble(c)
-                res = gc.eval(i1, i2, i3)
-                if (x ^ y ^ z) == res[0]:
-                    print(f"\33[32m{ba2int(i1)} ^ {ba2int(i2)} ^ {ba2int(i3)} = {ba2int(res)}\33[0m")
-                else:
-                    print(f"\33[31m{ba2int(i1)} ^ {ba2int(i2)} ^ {ba2int(i3)} = {ba2int(res)}\33[0m")
-                print("")
-                print("")
-                print("")
-
-if __name__ == "__main__" and False:
-    f = open("./bristol/test.txt")
-    c = Circuit(f.read())
-    for x in [0, 1]:
-        for y in [0, 1]:
-            for z in [0, 1]:
-                i1 = int2ba(x, 1, "little")
-                i2 = int2ba(y, 1, "little")
-                i3 = int2ba(z, 1, "little")
-                gc = garble(c)
-                res = gc.eval(i1, i2, i3)
-                if (x & y & z) == res[0]:
-                    print(f"\33[32m{ba2int(i1)} & {ba2int(i2)} & {ba2int(i3)} = {ba2int(res)}\33[0m")
-                else:
-                    print(f"\33[31m{ba2int(i1)} & {ba2int(i2)} & {ba2int(i3)} = {ba2int(res)}\33[0m")
-                print("")
-                print("")
-                print("")
-
-if __name__ == "__main__" and False:
-    num1 = 64 + 4865
-    num2 = 64 + 123
-    a = int2ba(num1, 64, "little")
-    b = int2ba(num2, 64, "little")
-    expected = int2ba(num1 + num2, 64, "little")
-    failed = 0
-    passed = 0
-    for something in range(100):
-        f = open("./bristol/adder64.txt")
-        c = Circuit(f.read())
-        gc = garble(c)
-        res = gc.eval(a, b)
-
-        delta = res ^ expected
-        if expected == res:
-            passed += 1
-            if delta[0] == 0:
-                print("\33[32mPASS\33[0m -- \33[32m LSB PASS\33[0m")
-            else:
-                print("\33[32mPASS\33[0m -- \33[32m LSB FAIL\33[0m")
-        else:
-            failed += 1
-
-            print("a         = " + str(a) + " (" + str(ba2int(a)) + ")")
-            print("b         = " + str(b) + " (" + str(ba2int(b)) + ")")
-            print("res       = " + str(res) + " (" + str(ba2int(res)) + ")")
-            print("expecting = " + str(expected) + " (" + str(ba2int(expected)) + ")")
-            print("delta     = " + str(delta) + " (" + str(ba2int(delta)) + ")")
-
-            if delta[0] == 0:
-                print("\33[31mFAIL\33[0m -- \33[32m LSB PASS\33[0m")
-            else:
-                print("\33[31mFAIL\33[0m -- \33[32m LSB FAIL\33[0m")
-
-    print("")
-
-    total = failed + passed
-    if passed == total:
-        print("\33[32mPasses " + str(passed) + " / " + str(total) + "\33[0m")
-    elif passed == 0:
-        print("\33[31mPasses " + str(passed) + " / " + str(total) + "\33[0m")
-    else:
-        print("\33[33mPasses " + str(passed) + " / " + str(total) + "\33[0m")
-
-    if True:
-        print("\33[34m--------------------------------------------------\33[0m")
-        # XOR Gate
-        f = open("./bristol/simple_xor.txt")
-        c = Circuit(f.read())
-
-        xorPass = 0
-        xorFail = 0
-        for num in range(2500):
-            gc = garble(c)
-            for a, b in [(0, 0), (0, 1), (1, 0), (1, 1)]:
-                res = gc.eval(int2ba(a, 1, "little"), int2ba(b, 1, "little"))
-                r = ba2int(res)
-                if r == (a ^ b):
-                    xorPass += 1
-                else:
-                    xorFail += 1
-
-        xorTotal = xorFail + xorPass
-        if xorTotal == xorPass:
-            print("\33[32mXOR PASS\33[0m --> " + str(xorPass) + " / " + str(xorTotal))
-        else:
-            print("\33[31mXOR FAIL\33[0m --> " + str(xorPass) + " / " + str(xorTotal))
-
-        # AND Gate
-        f = open("./bristol/simple_and.txt")
-        c = Circuit(f.read())
-
-        andPass = 0
-        andFail = 0
-        for num in range(2500):
-            gc = garble(c)
-            for a, b in [(0, 0), (0, 1), (1, 0), (1, 1)]:
-                res = gc.eval(int2ba(a, 1, "little"), int2ba(b, 1, "little"))
-                r = ba2int(res)
-                if r == (a & b):
-                    andPass += 1
-                else:
-                    andFail += 1
-
-        andTotal = andFail + andPass
-        if xorTotal == andPass:
-            print("\33[32mAND PASS\33[0m --> " + str(andPass) + " / " + str(andTotal))
-        else:
-            print("\33[31mAND FAIL\33[0m --> " + str(andPass) + " / " + str(andTotal))
