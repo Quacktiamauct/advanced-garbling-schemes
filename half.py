@@ -6,8 +6,12 @@ from typing import Tuple, List
 import secrets
 import hashlib
 
-SIZE = 8
+# Size of the underlying primitive (i.e. no of bits used, n)
+SIZE = 128
+
+# "Magic" number used to initialize bitarrays before use (easy to recoqnize)
 MAGIC = 0
+
 LSB_INDEX = 0
 
 def make_bitarray(i: int):

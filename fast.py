@@ -8,11 +8,11 @@ import secrets
 import hashlib
 
 # Size of the underlying primitive (i.e. no of bits used, n)
-SIZE = 8 * 16  # underlying primitive size k
+SIZE = 128
 EXTENDED_SIZE = SIZE + 1
 
 # "Magic" number used to initialize bitarrays before use (easy to recoqnize)
-MAGIC = 0  #
+MAGIC = 0
 
 
 def F(left: bitarray, index: int, bit: int) -> bitarray:
