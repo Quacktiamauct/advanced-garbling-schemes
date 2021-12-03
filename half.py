@@ -6,7 +6,7 @@ from typing import Tuple, List
 import secrets
 import hashlib
 
-SIZE = 128
+SIZE = 8
 MAGIC = 0
 LSB_INDEX = 0
 
@@ -115,6 +115,12 @@ class GarbledCircuit:
             # XOR
             if gate.operation is Operation.XOR:
                 wires[i] = wires[a] ^ wires[b]
+
+                print("> XOR " + str(i))
+                print("lhs  = " + str(wires[a]))
+                print("rhs  = " + str(wires[b]))
+                print("val  = " + str(wires[i]))
+                print("")
             # AND
             else:
                 sa = wires[a][LSB_INDEX]
@@ -128,6 +134,12 @@ class GarbledCircuit:
                 we = H(wires[b], jp) ^ (te ^ wires[a] if sb else zero)
 
                 wires[i] = wg ^ we
+                print("> AND " + str(i))
+                print("lhs  = " + str(wires[a]))
+                print("rhs  = " + str(wires[b]))
+                print("val  = " + str(wires[i]))
+                print("")
+
 
         return wires[-self.num_out_wires:]
 
@@ -137,6 +149,15 @@ class GarbledCircuit:
 
         zero = zeros(SIZE, endian='little')
         z = [self.e[i] ^ (self.R if x else zero) for i, x in enumerate(xs)]
+
+        for i, x in enumerate(xs):
+            print("> Input " + str(i))
+            print("x    = " + str(x))
+            print("R    = " + str(self.R))
+            print("e    = " + str(self.e[i]))
+            print("val  = " + str(self.e[i] ^ (self.R if x else zero)))
+            print()
+
         return z
 
     def decode(self, zs: List[bitarray]):
@@ -144,12 +165,21 @@ class GarbledCircuit:
             raise Exception(f"Decoding error: {len(self.d)} != {len(zs)}")
 
         x = [d ^ zs[i][LSB_INDEX] for i, d in enumerate(self.d)]
+
+        for i, d in enumerate(self.d):
+            print("> Output " + str(self.num_wires - i - 1))
+            print("d    = " + str(d))
+            print("z    = " + str(zs[i]))
+            print("z_0  = " + str(zs[i][LSB_INDEX]))
+            print("res  = " + str(d ^ zs[i][LSB_INDEX]))
+            print()
+
         return bitarray(x, endian="little")
 
 
-def rnd_bitarray(size):
-    i = secrets.randbits(size)
-    return int2ba(i, size, endian='little')
+def rnd_bitarray():
+    rand = int2ba(secrets.randbits(SIZE), SIZE, endian='little')
+    return rand.copy()
 
 
 def H(A: bitarray, i: int):
@@ -171,18 +201,26 @@ def garble(c: Circuit) -> GarbledCircuit:
     """
     gc = GarbledCircuit(c)
     gc.gates = []
+    gc.e = [bitarray()] * c.num_in_wires
 
     # Setup R
-    R = rnd_bitarray(SIZE)
+    R = rnd_bitarray()
     R[LSB_INDEX] = 1
     gc.R = R
 
     # Inputs
-    W = [[bitarray(), bitarray()]] * c.num_wires
+    W = [[-1, -1]] * c.num_wires
     for i in range(c.num_in_wires):
-        W[i][0] = rnd_bitarray(SIZE) # TODO: FIX: lack of randomness
+        W[i][0] = rnd_bitarray()
         W[i][1] = W[i][0] ^ R
     gc.e = [w[0] for w in W[: c.num_in_wires]]
+
+    for i in range(c.num_in_wires):
+        print("> Input " + str(i))
+        print("W0  = " + str(W[i][0]))
+        print("W1  = " + str(W[i][1]))
+        print("e   = " + str(gc.e[i]))
+        print()
 
     # Iterate over all gates
     zero = zeros(SIZE, endian='little')
@@ -198,6 +236,9 @@ def garble(c: Circuit) -> GarbledCircuit:
         # XOR
         if gate.operation == Operation.XOR:
             W[i][0] = W[a][0] ^ W[b][0]
+
+            print("> XOR " + str(i))
+            print("W0   = " + str(W[i][0]))
         # AND
         else:
             p_a = bitarray(W[a][0][LSB_INDEX])
@@ -218,16 +259,73 @@ def garble(c: Circuit) -> GarbledCircuit:
             W[i][0] = wg ^ we
             garbled.F = tg, te
 
+            print("> AND " + str(i))
+            print("p_a  = " + str(p_a))
+            print("p_b  = " + str(p_b))
+            print("j    = " + str(j))
+            print("jp   = " + str(jp))
+            print("tg   = " + str(tg))
+            print("wg   = " + str(wg))
+            print("te   = " + str(te))
+            print("we   = " + str(we))
+            print("W0   = " + str(W[i][0]))
+
         W[i][1] = W[i][0] ^ R
+        print("W1   = " + str(W[i][1]))
+        print("")
         gc.gates.append(garbled)
 
     # Outputs
     gc.d = bitarray([w[0][LSB_INDEX] for w in W[-c.num_out_wires:]])
 
+    for i in range(c.num_outputs):
+        print("> Ouput " + str(c.num_wires - i - 1))
+        print("d   = " + str(gc.d[i]))
+        print()
+
+    print("---------------------------------------------------------")
     return gc
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and True:
+    f = open("./bristol/test_xor.txt")
+    c = Circuit(f.read())
+    for x in [0, 1]:
+        for y in [0, 1]:
+            for z in [0, 1]:
+                i1 = int2ba(x, 1, "little")
+                i2 = int2ba(y, 1, "little")
+                i3 = int2ba(z, 1, "little")
+                gc = garble(c)
+                res = gc.eval(i1, i2, i3)
+                if (x ^ y ^ z) == res[0]:
+                    print(f"\33[32m{ba2int(i1)} ^ {ba2int(i2)} ^ {ba2int(i3)} = {ba2int(res)}\33[0m")
+                else:
+                    print(f"\33[31m{ba2int(i1)} ^ {ba2int(i2)} ^ {ba2int(i3)} = {ba2int(res)}\33[0m")
+                print("")
+                print("")
+                print("")
+
+if __name__ == "__main__" and False:
+    f = open("./bristol/test.txt")
+    c = Circuit(f.read())
+    for x in [0, 1]:
+        for y in [0, 1]:
+            for z in [0, 1]:
+                i1 = int2ba(x, 1, "little")
+                i2 = int2ba(y, 1, "little")
+                i3 = int2ba(z, 1, "little")
+                gc = garble(c)
+                res = gc.eval(i1, i2, i3)
+                if (x & y & z) == res[0]:
+                    print(f"\33[32m{ba2int(i1)} & {ba2int(i2)} & {ba2int(i3)} = {ba2int(res)}\33[0m")
+                else:
+                    print(f"\33[31m{ba2int(i1)} & {ba2int(i2)} & {ba2int(i3)} = {ba2int(res)}\33[0m")
+                print("")
+                print("")
+                print("")
+
+if __name__ == "__main__" and False:
     num1 = 64 + 4865
     num2 = 64 + 123
     a = int2ba(num1, 64, "little")
