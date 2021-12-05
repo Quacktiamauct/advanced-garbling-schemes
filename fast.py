@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import itertools
 from bitarray import bitarray
 from bitarray.util import int2ba
