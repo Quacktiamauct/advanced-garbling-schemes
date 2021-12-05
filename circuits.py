@@ -18,8 +18,6 @@ class Operation(Enum):
 
 
 op_dict = {
-    #"AND": Operation.ANDImproved,
-    #"XOR": Operation.XORImproved,
     "AND": Operation.AND,
     "XOR": Operation.XOR,
     "INV": Operation.INV,
@@ -92,7 +90,7 @@ class Circuit:
             s += f"{gate.left} {gate.right} {gate.output} {gate.operation}\n"
         return s
 
-    def eval(self, *input) -> bitarray:
+    def eval(self, *input: bitarray) -> bitarray:
         """
         Evaluates the circuit with the given inputs
         """
@@ -161,7 +159,7 @@ class Circuit:
 if __name__ == "__main__":
     f = open("./bristol/sub64.txt")
     raw = f.read()
-    c = Circuit(raw)
+    c = Circuit(raw, "sub64")
     a = int2ba(7, 64, endian="little")
     b = int2ba(5, 64, endian="little")
     ab = c.eval(a, b)
