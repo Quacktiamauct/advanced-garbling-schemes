@@ -3,8 +3,8 @@ from bitarray import bitarray
 from bitarray.util import int2ba, ba2int
 from circuits import Circuit, Gate, Operation
 from typing import Tuple, List
+from util import prf
 import secrets
-import hashlib
 
 # Size of the underlying primitive (i.e. no of bits used, n)
 SIZE = 128
@@ -26,9 +26,8 @@ def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
     """
     ia = int2ba(i, SIZE, endian="little")
     food = A + B + ia
-    hash = hashlib.sha256(food.tobytes()).digest()
     arr = bitarray(endian='little')
-    arr.frombytes(hash)
+    arr.frombytes(prf(food.tobytes()))
     return arr[SIZE:], arr[:SIZE]
 
 

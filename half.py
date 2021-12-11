@@ -3,8 +3,8 @@ from bitarray import bitarray
 from bitarray.util import int2ba, ba2int, zeros
 from circuits import Circuit, Gate, Operation
 from typing import Tuple, List
+from util import prf
 import secrets
-import hashlib
 
 # Size of the underlying primitive (i.e. no of bits used, n)
 SIZE = 128
@@ -19,19 +19,6 @@ def make_bitarray(i: int):
     returns a bitarray representing 'i' of size SIZE
     """
     return int2ba(i, SIZE, endian="little")
-
-
-def G(A: bitarray, B: bitarray, i: int) -> Tuple[bitarray, bitarray]:
-    """
-    input: A and B are bitarrays of size SIZE
-    returns a 2*SIZE bitarray
-    """
-    ia = int2ba(i, SIZE, endian="little")
-    food = A + B + ia
-    hash = hashlib.sha256(food.tobytes()).digest()
-    arr = bitarray(endian="little")
-    arr.frombytes(hash)
-    return arr[SIZE:], arr[:SIZE]
 
 
 def pick_random_pair():
@@ -166,9 +153,8 @@ def H(A: bitarray, i: int):
     """
     ia = int2ba(i, SIZE, endian="little")
     food = A + ia
-    hash = hashlib.sha256(food.tobytes()).digest()
     arr = bitarray(endian='little')
-    arr.frombytes(hash)
+    arr.frombytes(prf(food.tobytes()))
     return arr[:SIZE]
 
 

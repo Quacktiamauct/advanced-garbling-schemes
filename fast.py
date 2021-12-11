@@ -1,10 +1,10 @@
-import itertools
 from bitarray import bitarray
 from bitarray.util import int2ba
 from circuits import Circuit, Gate, Operation
 from typing import Tuple, List
+from util import prf
 import secrets
-import hashlib
+
 
 # Size of the underlying primitive (i.e. no of bits used, n)
 SIZE = 128
@@ -25,7 +25,7 @@ def F(left: bitarray, index: int, bit: int) -> bitarray:
 
     food = left + right
     arr = bitarray(endian="little")
-    arr.frombytes(hashlib.sha256(food.tobytes()).digest())
+    arr.frombytes(prf(food.tobytes()))
 
     return arr[:EXTENDED_SIZE]
 
@@ -41,7 +41,7 @@ def F2(left: bitarray, index: int, bit1: int, bit2: int) -> bitarray:
 
     food = left + right
     arr = bitarray(endian="little")
-    arr.frombytes(hashlib.sha256(food.tobytes()).digest())
+    arr.frombytes(prf(food.tobytes()))
 
     return arr[:EXTENDED_SIZE]
 
@@ -83,7 +83,7 @@ class GarbledGate:
         self.right = gate.right
         self.output = gate.output
         self.C = []
-        self.t = None
+        self.t = []
         self.operation = gate.operation
 
     def __str__(self):
