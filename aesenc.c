@@ -3,11 +3,15 @@
 #include <inttypes.h>
 #include <immintrin.h>
 
+#define printfn() printf("\n")
+
 void aes_1wide();
 void aes_2wide();
 void aes_4wide();
 void aes_8wide();
 void aes_16wide();
+
+#define ITERATIONS 10000000
 
 int
 main(int argc, char **argv) {
@@ -47,9 +51,7 @@ aes_1wide() {
 
 	__m128i X = _mm_set1_epi8(42);
 
-#define ITERATIONS 1000000
-
-	printf("Start benchmark...\n");
+	printf("Benchmarking AES encrypting interleaved 1 block(s)\n");
 	uint64_t start = __rdtsc();
 
 	for (uint32_t a = 0; a < ITERATIONS; ++a)
@@ -68,10 +70,11 @@ aes_1wide() {
 	double averagePerBlock = average / 1;
 
 	printf("X %016llx\n", _mm_extract_epi64(X, 0));
+	printfn();
 
-	printf("Total cycles %llu\n", elapsed);
-	printf("Average cycles %llu\n", (uint64_t) average);
-	printf("Average cycles per block %llu\n", (uint64_t) averagePerBlock);
+	printf("Total cycles:             %lu\n", elapsed);
+	printf("Cycles / iteration:       %.2f\n", average);
+	printf("Average cycles per block  %.2f\n", averagePerBlock);
 }
 
 void
@@ -87,9 +90,7 @@ aes_2wide() {
 	__m128i X = _mm_set1_epi8(42);
 	__m128i Y = _mm_set1_epi8(14);
 
-#define ITERATIONS 1000000
-
-	printf("Start benchmark...\n");
+	printf("Benchmarking AES encrypting interleaved 2 block(s)\n");
 	uint64_t start = __rdtsc();
 
 	for (uint32_t a = 0; a < ITERATIONS; ++a)
@@ -111,10 +112,11 @@ aes_2wide() {
 	double averagePerBlock = average / 2;
 
 	printf("X %016llx, Y %016llx\n", _mm_extract_epi64(X, 0), _mm_extract_epi64(Y, 0));
+	printfn();
 
-	printf("Total cycles %llu\n", elapsed);
-	printf("Average cycles %llu\n", (uint64_t) average);
-	printf("Average cycles per block %llu\n", (uint64_t) averagePerBlock);
+	printf("Total cycles:             %lu\n", elapsed);
+	printf("Cycles / iteration:       %.2f\n", average);
+	printf("Average cycles per block  %.2f\n", averagePerBlock);
 }
 
 void
@@ -136,9 +138,7 @@ aes_4wide() {
 	__m128i Z = _mm_set1_epi8(13);
 	__m128i W = _mm_set1_epi8(9);
 
-#define ITERATIONS 1000000
-
-	printf("Start benchmark...\n");
+	printf("Benchmarking AES encrypting interleaved 4 block(s)\n");
 	uint64_t start = __rdtsc();
 
 	for (uint32_t a = 0; a < ITERATIONS; ++a)
@@ -167,10 +167,11 @@ aes_4wide() {
 
 	printf("X %016llx, Y %016llx\n", _mm_extract_epi64(X, 0), _mm_extract_epi64(Y, 0));
 	printf("Z %016llx, W %016llx\n", _mm_extract_epi64(Z, 0), _mm_extract_epi64(W, 0));
+	printfn();
 
-	printf("Total cycles %llu\n", elapsed);
-	printf("Average cycles %llu\n", (uint64_t) average);
-	printf("Average cycles per block %llu\n", (uint64_t) averagePerBlock);
+	printf("Total cycles:             %lu\n", elapsed);
+	printf("Cycles / iteration:       %.2f\n", average);
+	printf("Average cycles per block  %.2f\n", averagePerBlock);
 }
 
 void
@@ -204,9 +205,7 @@ aes_8wide() {
 	__m128i C = _mm_set1_epi8(13 * 5);
 	__m128i D = _mm_set1_epi8(9 * 9);
 
-#define ITERATIONS 1000000
-
-	printf("Start benchmark...\n");
+	printf("Benchmarking AES encrypting interleaved 8 block(s)\n");
 	uint64_t start = __rdtsc();
 
 	for (uint32_t a = 0; a < ITERATIONS; ++a)
@@ -249,12 +248,12 @@ aes_8wide() {
 	printf("Z %016llx, W %016llx\n", _mm_extract_epi64(Z, 0), _mm_extract_epi64(W, 0));
 	printf("A %016llx, B %016llx\n", _mm_extract_epi64(A, 0), _mm_extract_epi64(B, 0));
 	printf("C %016llx, D %016llx\n", _mm_extract_epi64(C, 0), _mm_extract_epi64(D, 0));
+	printfn();
 
-	printf("Total cycles %llu\n", elapsed);
-	printf("Average cycles %llu\n", (uint64_t) average);
-	printf("Average cycles per block %llu\n", (uint64_t) averagePerBlock);
+	printf("Total cycles:             %lu\n", elapsed);
+	printf("Cycles / iteration:       %.2f\n", average);
+	printf("Average cycles per block  %.2f\n", averagePerBlock);
 }
-
 
 void
 aes_16wide() {
@@ -302,18 +301,16 @@ aes_16wide() {
 	__m128i B = _mm_set1_epi8(14 * 6);
 	__m128i C = _mm_set1_epi8(13 * 5);
 	__m128i D = _mm_set1_epi8(9 * 9);
-	__m128i E = _mm_set1_epi8(42 * 9);
-	__m128i F = _mm_set1_epi8(14 * 9);
-	__m128i G = _mm_set1_epi8(13 * 9);
+	__m128i E = _mm_set1_epi8(42 * 3);
+	__m128i F = _mm_set1_epi8(14 * 3);
+	__m128i G = _mm_set1_epi8(13 * 3);
 	__m128i H = _mm_set1_epi8(9 * 9);
-	__m128i I = _mm_set1_epi8(42 * 3 * 9);
-	__m128i J = _mm_set1_epi8(14 * 6 * 9);
-	__m128i K = _mm_set1_epi8(13 * 5 * 9);
-	__m128i L = _mm_set1_epi8(9 * 9 * 9);
+	__m128i I = _mm_set1_epi8(42 * 3);
+	__m128i J = _mm_set1_epi8(14 * 6);
+	__m128i K = _mm_set1_epi8(13 * 5);
+	__m128i L = _mm_set1_epi8(9 * 9	);
 
-#define ITERATIONS 1000000
-
-	printf("Start benchmark...\n");
+	printf("Benchmarking AES encrypting interleaved 16 block(s)\n");
 	uint64_t start = __rdtsc();
 
 	for (uint32_t a = 0; a < ITERATIONS; ++a)
@@ -384,9 +381,10 @@ aes_16wide() {
 	printf("G %016llx, H %016llx\n", _mm_extract_epi64(G, 0), _mm_extract_epi64(H, 0));
 	printf("I %016llx, J %016llx\n", _mm_extract_epi64(I, 0), _mm_extract_epi64(J, 0));
 	printf("K %016llx, L %016llx\n", _mm_extract_epi64(K, 0), _mm_extract_epi64(L, 0));
+	printfn();
 
-	printf("Total cycles %llu\n", elapsed);
-	printf("Average cycles %llu\n", (uint64_t) average);
-	printf("Average cycles per block %llu\n", (uint64_t) averagePerBlock);
+	printf("Total cycles:             %lu\n", elapsed);
+	printf("Cycles / iteration:       %.2f\n", average);
+	printf("Average cycles per block  %.2f\n", averagePerBlock);
 }
 
